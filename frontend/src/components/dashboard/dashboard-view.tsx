@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Plus } from "lucide-react";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { RevisionQueue } from "@/components/dashboard/revision-queue";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardApi } from "@/services/dashboard.service";
@@ -52,10 +53,7 @@ export function DashboardView() {
 
     return (
       <div className="space-y-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">{message}</p>
-        </div>
+        <PageHeader title="Dashboard" description={message} />
         <Button type="button" variant="outline" onClick={() => void refetch()}>
           Try again
         </Button>
@@ -68,27 +66,23 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            Overview of your practice activity.
-          </p>
-        </div>
-        {backlogBlocked ? (
-          <Button type="button" disabled aria-disabled="true">
-            <Plus className="size-4" />
-            Add Problem
-          </Button>
-        ) : (
-          <Link href="/problems/new">
-            <Button type="button">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your practice activity."
+        actions={
+          backlogBlocked ? (
+            <Button type="button" disabled aria-disabled="true">
               <Plus className="size-4" />
               Add Problem
             </Button>
-          </Link>
-        )}
-      </div>
+          ) : (
+            <Button type="button" render={<Link href="/problems/new" />}>
+              <Plus className="size-4" />
+              Add Problem
+            </Button>
+          )
+        }
+      />
 
       {backlogBlocked ? (
         <div
@@ -112,7 +106,9 @@ export function DashboardView() {
       <RevisionQueue items={data.revisionQueue} />
 
       {isFetching ? (
-        <p className="text-muted-foreground text-xs">Refreshing…</p>
+        <p className="text-muted-foreground text-xs" aria-live="polite">
+          Refreshing…
+        </p>
       ) : null}
     </div>
   );

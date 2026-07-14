@@ -7,6 +7,7 @@ import {
 } from "../models/Problem.js";
 import { Revision } from "../models/Revision.js";
 import { AppError } from "../utils/AppError.js";
+import { isDuplicateKeyError } from "../utils/mongo.js";
 import { parseObjectId } from "../utils/objectId.js";
 import {
   buildPaginationMeta,
@@ -52,7 +53,18 @@ export async function assertUniqueProblemUrl(
   }
 }
 
-async function scheduleRevisionsForAttempt(
+async function nextRevisionNumber(
+  userId: string,
+  problemId: IProblemDocument["_id"],
+): Promise<number> {
+  const last = await Revision.findOne({ userId, problemId })
+    .sort({ revisionNumber: -1 })
+    .select("revisionNumber")
+    .lean();
+  return (last?.revisionNumber ?? 0) + 1;
+}
+
+export async function scheduleRevisionsForAttempt(
   userId: string,
   problemId: IProblemDocument["_id"],
   attemptType: AttemptType,
@@ -63,6 +75,8 @@ async function scheduleRevisionsForAttempt(
     return;
   }
 
+  const startNumber = await nextRevisionNumber(userId, problemId);
+
   const docs = intervals.map((days, index) => {
     const dueDate = new Date(from);
     dueDate.setUTCDate(dueDate.getUTCDate() + days);
@@ -72,12 +86,25 @@ async function scheduleRevisionsForAttempt(
       userId,
       problemId,
       dueDate,
-      revisionNumber: index + 1,
+      revisionNumber: startNumber + index,
       completed: false,
     };
   });
 
   await Revision.insertMany(docs);
+}
+
+async function reschedulePendingRevisions(
+  userId: string,
+  problemId: IProblemDocument["_id"],
+  attemptType: AttemptType,
+): Promise<void> {
+  await Revision.deleteMany({
+    userId,
+    problemId,
+    completed: false,
+  });
+  await scheduleRevisionsForAttempt(userId, problemId, attemptType);
 }
 
 export async function createProblem(
@@ -87,8 +114,10 @@ export async function createProblem(
   await assertCanAddProblem(userId);
   await assertUniqueProblemUrl(userId, input.url);
 
+  let problem: IProblemDocument | null = null;
+
   try {
-    const problem = await Problem.create({
+    problem = await Problem.create({
       userId,
       title: input.title,
       url: input.url,
@@ -103,6 +132,13 @@ export async function createProblem(
     );
     return problem;
   } catch (error) {
+    if (problem) {
+      await Promise.all([
+        Revision.deleteMany({ problemId: problem._id, userId }),
+        Problem.deleteOne({ _id: problem._id }),
+      ]);
+    }
+
     if (isDuplicateKeyError(error)) {
       throw new AppError("A problem with this URL already exists", 409, {
         url: ["Problem URL must be unique"],
@@ -119,15 +155,13 @@ export async function listProblems(
   const filter: QueryFilter<IProblem> = { userId };
 
   if (query.attemptType) {
-    filter.attemptType = query.attemptType as AttemptType;
+    filter.attemptType = query.attemptType;
   }
 
   if (query.search) {
     const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    filter.$or = [
-      { title: { $regex: escaped, $options: "i" } },
-      { url: { $regex: escaped, $options: "i" } },
-    ];
+    const prefix = new RegExp(`^${escaped}`, "i");
+    filter.$or = [{ title: prefix }, { url: prefix }];
   }
 
   const skip = paginationSkip(query.page, query.limit);
@@ -135,12 +169,13 @@ export async function listProblems(
     Problem.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(query.limit),
+      .limit(query.limit)
+      .lean(),
     Problem.countDocuments(filter),
   ]);
 
   return {
-    items,
+    items: items as unknown as IProblemDocument[],
     pagination: buildPaginationMeta(query.page, query.limit, total),
   };
 }
@@ -167,6 +202,7 @@ export async function updateProblem(
   input: UpdateProblemInput,
 ): Promise<IProblemDocument> {
   const problem = await getProblemById(userId, problemId);
+  const previousAttemptType = problem.attemptType;
 
   if (input.url !== undefined && input.url !== problem.url) {
     await assertUniqueProblemUrl(userId, input.url, problemId);
@@ -189,6 +225,18 @@ export async function updateProblem(
 
   try {
     await problem.save();
+
+    if (
+      input.attemptType !== undefined &&
+      input.attemptType !== previousAttemptType
+    ) {
+      await reschedulePendingRevisions(
+        userId,
+        problem._id,
+        input.attemptType,
+      );
+    }
+
     return problem;
   } catch (error) {
     if (isDuplicateKeyError(error)) {
@@ -207,13 +255,4 @@ export async function deleteProblem(
   const problem = await getProblemById(userId, problemId);
   await Revision.deleteMany({ problemId: problem._id, userId });
   await problem.deleteOne();
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: unknown }).code === 11000
-  );
 }

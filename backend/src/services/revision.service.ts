@@ -6,6 +6,7 @@ import {
   type IRevisionDocument,
 } from "../models/Revision.js";
 import { AppError } from "../utils/AppError.js";
+import { isDuplicateKeyError } from "../utils/mongo.js";
 import { parseObjectId } from "../utils/objectId.js";
 import {
   buildPaginationMeta,
@@ -100,12 +101,13 @@ export async function listRevisions(
       .sort({ dueDate: 1, revisionNumber: 1 })
       .skip(skip)
       .limit(query.limit)
-      .populate("problemId", "title url attemptType"),
+      .populate("problemId", "title url attemptType")
+      .lean(),
     Revision.countDocuments(filter),
   ]);
 
   return {
-    items,
+    items: items as unknown as IRevisionDocument[],
     pagination: buildPaginationMeta(query.page, query.limit, total),
   };
 }
@@ -158,9 +160,10 @@ export async function updateRevision(
     } else {
       revision.completedAt = undefined;
     }
-  } else if (input.completedAt !== undefined) {
+  } else if (input.completedAt !== undefined && revision.completed) {
     if (input.completedAt === null) {
       revision.completedAt = undefined;
+      revision.completed = false;
     } else {
       revision.completedAt = input.completedAt;
     }
@@ -196,13 +199,4 @@ export async function deleteRevision(
   }
 
   await revision.deleteOne();
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: unknown }).code === 11000
-  );
 }

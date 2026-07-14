@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,15 +17,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ApiError } from "@/lib/api";
 import { formatShortDate, isOverdue } from "@/lib/dates";
 import { attemptTypeLabel } from "@/lib/revision";
+import { cn } from "@/lib/utils";
+import {
+  ATTEMPT_TYPE_OPTIONS,
+  createProblemSchema,
+  type CreateProblemFormValues,
+  type CreateProblemPayload,
+} from "@/lib/validations/problem";
 import { problemApi } from "@/services/problem.service";
 import { revisionApi } from "@/services/revision.service";
-import type { AttemptType, Revision } from "@/types/api";
+import type { AttemptType, Problem, Revision } from "@/types/api";
 
 function ProblemDetailsSkeleton() {
   return (
@@ -109,12 +120,179 @@ function RevisionList({
   );
 }
 
+function EditProblemForm({
+  problem,
+  onCancel,
+  onSaved,
+}: {
+  problem: Problem;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isDirty },
+    setError,
+  } = useForm<CreateProblemFormValues, unknown, CreateProblemPayload>({
+    resolver: zodResolver(createProblemSchema),
+    defaultValues: {
+      title: problem.title,
+      url: problem.url,
+      attemptType: problem.attemptType,
+      timeTaken: problem.timeTaken ?? "",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (values: CreateProblemPayload) =>
+      problemApi.update(problem._id, {
+        title: values.title,
+        url: values.url,
+        attemptType: values.attemptType,
+        timeTaken: values.timeTaken ?? null,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["problems"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["revisions"] }),
+        queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+      ]);
+      toast.success("Problem updated");
+      onSaved();
+    },
+    onError: (error: Error) => {
+      const message =
+        error instanceof ApiError ? error.message : "Could not update problem";
+      setError("root", { message });
+      toast.error(message);
+    },
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      noValidate
+    >
+      <div className="space-y-2">
+        <Label htmlFor="edit-title">Problem name</Label>
+        <Input
+          id="edit-title"
+          aria-invalid={Boolean(errors.title)}
+          {...register("title")}
+        />
+        {errors.title ? (
+          <p role="alert" className="text-destructive text-sm">
+            {errors.title.message}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-url">Link</Label>
+        <Input
+          id="edit-url"
+          type="url"
+          aria-invalid={Boolean(errors.url)}
+          {...register("url")}
+        />
+        {errors.url ? (
+          <p role="alert" className="text-destructive text-sm">
+            {errors.url.message}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label id="edit-attempt-label">Attempt type</Label>
+        <Controller
+          name="attemptType"
+          control={control}
+          render={({ field }) => (
+            <div
+              className="flex flex-col gap-2"
+              role="radiogroup"
+              aria-labelledby="edit-attempt-label"
+            >
+              {ATTEMPT_TYPE_OPTIONS.map((option) => {
+                const selected = field.value === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={cn(
+                      "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                      selected
+                        ? "border-foreground/30 bg-muted/40"
+                        : "border-border",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      className="accent-foreground size-4"
+                      name={field.name}
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => field.onChange(option.value)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        />
+        <p className="text-muted-foreground text-xs">
+          Changing attempt type clears incomplete revisions and reschedules
+          based on the new type.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-timeTaken">Time taken (minutes)</Label>
+        <Input
+          id="edit-timeTaken"
+          type="number"
+          min={0}
+          max={1440}
+          {...register("timeTaken")}
+        />
+      </div>
+
+      {errors.root ? (
+        <p role="alert" className="text-destructive text-sm">
+          {errors.root.message}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={!isDirty || mutation.isPending}>
+          {mutation.isPending ? "Saving…" : "Save changes"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={mutation.isPending}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function ProblemDetailsView() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const problemId = params.id;
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const problemQuery = useQuery({
     queryKey: ["problems", problemId],
@@ -223,12 +401,24 @@ export function ProblemDetailsView() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <a href={problem.url} target="_blank" rel="noopener noreferrer">
-            <Button type="button" variant="outline">
-              <ExternalLink className="size-4" />
-              Open problem
-            </Button>
-          </a>
+          <Button
+            type="button"
+            variant="outline"
+            render={
+              <a href={problem.url} target="_blank" rel="noopener noreferrer" />
+            }
+          >
+            <ExternalLink className="size-4" />
+            Open problem
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setEditing((value) => !value)}
+          >
+            <Pencil className="size-4" />
+            {editing ? "Close editor" : "Edit"}
+          </Button>
           <Button
             type="button"
             variant="destructive"
@@ -242,47 +432,65 @@ export function ProblemDetailsView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <CardTitle>{editing ? "Edit problem" : "Details"}</CardTitle>
           <CardDescription>
-            Core info for this tracked problem.
+            {editing
+              ? "Update problem fields. Changing attempt type reschedules pending revisions."
+              : "Core info for this tracked problem."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-            <span className="text-muted-foreground w-28 shrink-0">
-              Problem name
-            </span>
-            <span className="font-medium">{problem.title}</span>
-          </div>
-          <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-            <span className="text-muted-foreground w-28 shrink-0">Link</span>
-            <a
-              href={problem.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-primary break-all underline-offset-4 hover:underline"
-            >
-              {problem.url}
-            </a>
-          </div>
-          <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-            <span className="text-muted-foreground w-28 shrink-0">
-              Attempt type
-            </span>
-            <Badge variant="outline">
-              {attemptTypeLabel(problem.attemptType as AttemptType)}
-            </Badge>
-          </div>
-          <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-            <span className="text-muted-foreground w-28 shrink-0">
-              Created date
-            </span>
-            <span>{formatShortDate(problem.createdAt)}</span>
-          </div>
-          <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-            <span className="text-muted-foreground w-28 shrink-0">Status</span>
-            <Badge variant={status.variant}>{status.label}</Badge>
-          </div>
+        <CardContent>
+          {editing ? (
+            <EditProblemForm
+              problem={problem}
+              onCancel={() => setEditing(false)}
+              onSaved={() => {
+                setEditing(false);
+                void problemQuery.refetch();
+                void revisionsQuery.refetch();
+              }}
+            />
+          ) : (
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <span className="text-muted-foreground w-28 shrink-0">
+                  Problem name
+                </span>
+                <span className="font-medium">{problem.title}</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <span className="text-muted-foreground w-28 shrink-0">Link</span>
+                <a
+                  href={problem.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary break-all underline-offset-4 hover:underline"
+                >
+                  {problem.url}
+                </a>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <span className="text-muted-foreground w-28 shrink-0">
+                  Attempt type
+                </span>
+                <Badge variant="outline">
+                  {attemptTypeLabel(problem.attemptType as AttemptType)}
+                </Badge>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <span className="text-muted-foreground w-28 shrink-0">
+                  Created date
+                </span>
+                <span>{formatShortDate(problem.createdAt)}</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <span className="text-muted-foreground w-28 shrink-0">
+                  Status
+                </span>
+                <Badge variant={status.variant}>{status.label}</Badge>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

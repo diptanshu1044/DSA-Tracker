@@ -80,6 +80,19 @@ export function AnalyticsCharts({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <div className="sr-only" aria-live="polite">
+        <h2>Analytics data summary</h2>
+        <p>
+          Attempt types:{" "}
+          {pieData
+            .map((item) => `${item.name} ${item.value}`)
+            .join(", ") || "none"}
+          . Problems added in the last 30 days:{" "}
+          {problemsByDay.reduce((sum, day) => sum + day.count, 0)}. Revisions
+          completed in the last 12 weeks:{" "}
+          {revisionsByWeek.reduce((sum, week) => sum + week.count, 0)}.
+        </p>
+      </div>
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Problems added by day</CardTitle>

@@ -27,8 +27,8 @@ export function createApp() {
     }),
   );
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: "256kb" }));
+  app.use(express.urlencoded({ extended: true, limit: "256kb" }));
   app.use(cookieParser());
 
   configurePassport();

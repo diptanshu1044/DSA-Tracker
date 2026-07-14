@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -21,9 +22,18 @@ import { loginSchema, type LoginFormValues } from "@/lib/validations/auth";
 import { authApi } from "@/services/auth.service";
 import { useAuth } from "@/providers/auth-provider";
 import { ApiError } from "@/lib/api";
+import { PageLoader } from "@/components/shared/page-loader";
 
-export function LoginForm() {
+const LOGIN_ERRORS: Record<string, string> = {
+  google_auth_failed: "Google sign-in failed. Please try again.",
+  google_email_in_use:
+    "An account with that email already exists. Sign in with email and password instead.",
+  missing_token: "Sign-in session expired. Please try again.",
+};
+
+function LoginFormInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setAuth } = useAuth();
 
   const {
@@ -35,6 +45,19 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    const errorKey = searchParams.get("error");
+    if (errorKey && LOGIN_ERRORS[errorKey]) {
+      const message = LOGIN_ERRORS[errorKey];
+      setError("root", { message });
+      toast.error(message);
+    }
+
+    if (searchParams.get("reset") === "success") {
+      toast.success("Password updated. You can sign in now.");
+    }
+  }, [searchParams, setError]);
 
   const mutation = useMutation({
     mutationFn: authApi.login,
@@ -71,10 +94,14 @@ export function LoginForm() {
               id="email"
               type="email"
               autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "email-error" : undefined}
               {...register("email")}
             />
             {errors.email ? (
-              <p className="text-destructive text-sm">{errors.email.message}</p>
+              <p id="email-error" role="alert" className="text-destructive text-sm">
+                {errors.email.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
@@ -91,17 +118,25 @@ export function LoginForm() {
               id="password"
               type="password"
               autoComplete="current-password"
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={errors.password ? "password-error" : undefined}
               {...register("password")}
             />
             {errors.password ? (
-              <p className="text-destructive text-sm">
+              <p
+                id="password-error"
+                role="alert"
+                className="text-destructive text-sm"
+              >
                 {errors.password.message}
               </p>
             ) : null}
           </div>
 
           {errors.root ? (
-            <p className="text-destructive text-sm">{errors.root.message}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.root.message}
+            </p>
           ) : null}
 
           <Button
@@ -142,5 +177,13 @@ export function LoginForm() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export function LoginForm() {
+  return (
+    <Suspense fallback={<PageLoader label="Loading…" />}>
+      <LoginFormInner />
+    </Suspense>
   );
 }

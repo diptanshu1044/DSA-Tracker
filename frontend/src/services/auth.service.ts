@@ -64,6 +64,13 @@ export const authApi = {
     });
   },
 
+  session() {
+    return apiRequest<AuthPayload>({
+      method: "GET",
+      url: "/auth/session",
+    });
+  },
+
   updateProfile(data: { name: string }) {
     return apiRequest<{ user: User }>({
       method: "PATCH",

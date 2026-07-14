@@ -7,8 +7,8 @@ import {
   listProblems,
   updateProblem,
 } from "../services/problem.service.js";
-import { AppError } from "../utils/AppError.js";
 import { paramId } from "../utils/params.js";
+import { requireUserId } from "../utils/requireUser.js";
 import { sendMessage, sendSuccess } from "../utils/response.js";
 import { parseOrThrow } from "../utils/validation.js";
 import {
@@ -16,13 +16,6 @@ import {
   listProblemsQuerySchema,
   updateProblemSchema,
 } from "../validators/problem.validators.js";
-
-function requireUserId(req: Request): string {
-  if (!req.userId) {
-    throw new AppError("Authentication required", 401);
-  }
-  return req.userId;
-}
 
 export const problemController = {
   create: asyncHandler(async (req: Request, res: Response) => {

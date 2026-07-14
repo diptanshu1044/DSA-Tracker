@@ -12,6 +12,13 @@ export interface CreateProblemInput {
   timeTaken?: number;
 }
 
+export interface UpdateProblemInput {
+  title?: string;
+  url?: string;
+  attemptType?: AttemptType;
+  timeTaken?: number | null;
+}
+
 export interface ListProblemsParams {
   page?: number;
   limit?: number;
@@ -48,6 +55,14 @@ export const problemApi = {
     return apiRequest<{ problem: Problem }>({
       method: "POST",
       url: "/problems",
+      data,
+    });
+  },
+
+  update(id: string, data: UpdateProblemInput) {
+    return apiRequest<{ problem: Problem }>({
+      method: "PATCH",
+      url: `/problems/${id}`,
       data,
     });
   },

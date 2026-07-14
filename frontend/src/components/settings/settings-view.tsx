@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { ApiError } from "@/lib/api";
+import { getInitials } from "@/lib/initials";
 import {
   updateProfileSchema,
   type UpdateProfileFormValues,
@@ -30,15 +31,6 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { authApi } from "@/services/auth.service";
 import { cn } from "@/lib/utils";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },
@@ -144,10 +136,14 @@ export function SettingsView() {
               <Input
                 id="name"
                 autoComplete="name"
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? "name-error" : undefined}
                 {...register("name")}
               />
               {errors.name ? (
-                <p className="text-destructive text-sm">{errors.name.message}</p>
+                <p id="name-error" role="alert" className="text-destructive text-sm">
+                  {errors.name.message}
+                </p>
               ) : null}
             </div>
 
@@ -164,7 +160,9 @@ export function SettingsView() {
             </div>
 
             {errors.root ? (
-              <p className="text-destructive text-sm">{errors.root.message}</p>
+              <p role="alert" className="text-destructive text-sm">
+                {errors.root.message}
+              </p>
             ) : null}
 
             <Button
@@ -193,22 +191,26 @@ export function SettingsView() {
             {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
               const selected = theme === value;
               return (
-                <button
+                <label
                   key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setTheme(value)}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg border px-3 py-3 text-left text-sm transition-colors",
+                    "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-sm transition-colors",
                     selected
                       ? "border-foreground/20 bg-muted"
                       : "hover:bg-muted/60",
                   )}
                 >
-                  <Icon className="size-4 shrink-0" />
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={value}
+                    checked={selected}
+                    onChange={() => setTheme(value)}
+                    className="sr-only"
+                  />
+                  <Icon className="size-4 shrink-0" aria-hidden />
                   {label}
-                </button>
+                </label>
               );
             })}
           </div>

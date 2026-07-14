@@ -61,6 +61,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
       dueDate: { $lt: tomorrowStart },
     })
       .sort({ dueDate: 1, revisionNumber: 1 })
+      .limit(50)
       .populate("problemId", "title url attemptType")
       .lean(),
   ]);

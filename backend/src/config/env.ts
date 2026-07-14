@@ -29,6 +29,15 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
+  SMTP_HOST: z.string().optional().default(""),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  SMTP_USER: z.string().optional().default(""),
+  SMTP_PASS: z.string().optional().default(""),
+  SMTP_FROM: z.string().optional().default("DSA Tracker <noreply@dsa-tracker.local>"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -39,9 +48,24 @@ if (!parsed.success) {
 }
 
 const data = parsed.data;
+const accessExpires = data.JWT_EXPIRES_IN ?? data.JWT_ACCESS_EXPIRES_IN;
+const refreshSecret = data.JWT_REFRESH_SECRET ?? data.JWT_SECRET;
+
+if (data.NODE_ENV === "production") {
+  if (!data.JWT_REFRESH_SECRET) {
+    throw new Error(
+      "JWT_REFRESH_SECRET is required in production and must differ from JWT_SECRET",
+    );
+  }
+  if (data.JWT_REFRESH_SECRET === data.JWT_SECRET) {
+    throw new Error(
+      "JWT_REFRESH_SECRET must be different from JWT_SECRET in production",
+    );
+  }
+}
 
 export const env = {
   ...data,
-  JWT_ACCESS_EXPIRES_IN: data.JWT_EXPIRES_IN ?? data.JWT_ACCESS_EXPIRES_IN,
-  JWT_REFRESH_SECRET: data.JWT_REFRESH_SECRET ?? data.JWT_SECRET,
+  JWT_ACCESS_EXPIRES_IN: accessExpires,
+  JWT_REFRESH_SECRET: refreshSecret,
 };

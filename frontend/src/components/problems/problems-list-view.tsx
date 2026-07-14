@@ -122,12 +122,10 @@ export function ProblemsListView() {
         title="Problems"
         description="Browse and manage tracked problems."
         actions={
-          <Link href="/problems/new">
-            <Button type="button">
-              <Plus className="size-4" />
-              Add Problem
-            </Button>
-          </Link>
+          <Button type="button" render={<Link href="/problems/new" />}>
+            <Plus className="size-4" />
+            Add Problem
+          </Button>
         }
       />
 
@@ -196,12 +194,10 @@ export function ProblemsListView() {
               }
               action={
                 hasFilters ? undefined : (
-                  <Link href="/problems/new">
-                    <Button type="button">
-                      <Plus className="size-4" />
-                      Add Problem
-                    </Button>
-                  </Link>
+                  <Button type="button" render={<Link href="/problems/new" />}>
+                    <Plus className="size-4" />
+                    Add Problem
+                  </Button>
                 )
               }
               className="border-0"
@@ -233,21 +229,29 @@ export function ProblemsListView() {
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <a
-                      href={problem.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      render={
+                        <a
+                          href={problem.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      }
                     >
-                      <Button type="button" size="sm" variant="ghost">
-                        <ExternalLink className="size-3.5" />
-                        Open
-                      </Button>
-                    </a>
-                    <Link href={`/problems/${problem._id}`}>
-                      <Button type="button" size="sm" variant="outline">
-                        Details
-                      </Button>
-                    </Link>
+                      <ExternalLink className="size-3.5" />
+                      Open
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      render={<Link href={`/problems/${problem._id}`} />}
+                    >
+                      Details
+                    </Button>
                   </div>
                 </li>
               ))}

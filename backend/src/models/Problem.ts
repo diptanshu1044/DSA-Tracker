@@ -59,5 +59,6 @@ const problemSchema = new Schema<IProblem>(
 
 problemSchema.index({ userId: 1, url: 1 }, { unique: true });
 problemSchema.index({ userId: 1, createdAt: -1 });
+problemSchema.index({ userId: 1, attemptType: 1, createdAt: -1 });
 
 export const Problem: Model<IProblem> = model<IProblem>("Problem", problemSchema);

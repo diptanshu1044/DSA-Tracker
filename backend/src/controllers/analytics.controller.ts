@@ -1,15 +1,8 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { getAnalytics } from "../services/analytics.service.js";
-import { AppError } from "../utils/AppError.js";
+import { requireUserId } from "../utils/requireUser.js";
 import { sendSuccess } from "../utils/response.js";
-
-function requireUserId(req: Request): string {
-  if (!req.userId) {
-    throw new AppError("Authentication required", 401);
-  }
-  return req.userId;
-}
 
 export const analyticsController = {
   get: asyncHandler(async (req: Request, res: Response) => {

@@ -62,6 +62,7 @@ revisionSchema.index(
   { unique: true },
 );
 revisionSchema.index({ userId: 1, dueDate: 1, completed: 1 });
+revisionSchema.index({ userId: 1, completed: 1, completedAt: -1 });
 
 export const Revision: Model<IRevision> = model<IRevision>(
   "Revision",

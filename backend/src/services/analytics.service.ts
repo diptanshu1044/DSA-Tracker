@@ -93,120 +93,131 @@ export async function getAnalytics(userId: string): Promise<AnalyticsData> {
   const weekRangeEnd = startOfUtcWeek(today);
   const weekRangeStart = addUtcDays(weekRangeEnd, -(WEEKS_LOOKBACK - 1) * 7);
 
-  const [
-    summaryRows,
-    problemsByDayRows,
-    attemptTypeRows,
-    revisionsByWeekRows,
-    pendingRows,
-  ] = await Promise.all([
+  const [problemFacet, revisionFacet] = await Promise.all([
     Problem.aggregate<{
-      problemsAdded: number;
-      solvedMyself: number;
-      neededHelp: number;
+      summary: Array<{
+        problemsAdded: number;
+        solvedMyself: number;
+        neededHelp: number;
+      }>;
+      problemsByDay: Array<{ _id: string; count: number }>;
+      attemptTypes: Array<{ _id: AttemptType; count: number }>;
     }>([
       { $match: { userId: uid } },
       {
-        $group: {
-          _id: null,
-          problemsAdded: { $sum: 1 },
-          solvedMyself: {
-            $sum: { $cond: [{ $eq: ["$attemptType", "SELF"] }, 1, 0] },
-          },
-          neededHelp: {
-            $sum: {
-              $cond: [{ $in: ["$attemptType", ["HINT", "VIDEO"]] }, 1, 0],
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          problemsAdded: 1,
-          solvedMyself: 1,
-          neededHelp: 1,
-        },
-      },
-    ]),
-
-    Problem.aggregate<{ _id: string; count: number }>([
-      {
-        $match: {
-          userId: uid,
-          createdAt: { $gte: dayRangeStart },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]),
-
-    Problem.aggregate<{ _id: AttemptType; count: number }>([
-      { $match: { userId: uid } },
-      {
-        $group: {
-          _id: "$attemptType",
-          count: { $sum: 1 },
-        },
-      },
-    ]),
-
-    Revision.aggregate<{ _id: string; count: number }>([
-      {
-        $match: {
-          userId: uid,
-          completed: true,
-          completedAt: { $gte: weekRangeStart },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: {
-                $dateTrunc: {
-                  date: "$completedAt",
-                  unit: "week",
-                  startOfWeek: "monday",
+        $facet: {
+          summary: [
+            {
+              $group: {
+                _id: null,
+                problemsAdded: { $sum: 1 },
+                solvedMyself: {
+                  $sum: { $cond: [{ $eq: ["$attemptType", "SELF"] }, 1, 0] },
+                },
+                neededHelp: {
+                  $sum: {
+                    $cond: [
+                      { $in: ["$attemptType", ["HINT", "VIDEO"]] },
+                      1,
+                      0,
+                    ],
+                  },
                 },
               },
             },
-          },
-          count: { $sum: 1 },
+            {
+              $project: {
+                _id: 0,
+                problemsAdded: 1,
+                solvedMyself: 1,
+                neededHelp: 1,
+              },
+            },
+          ],
+          problemsByDay: [
+            { $match: { createdAt: { $gte: dayRangeStart } } },
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { _id: 1 } },
+          ],
+          attemptTypes: [
+            {
+              $group: {
+                _id: "$attemptType",
+                count: { $sum: 1 },
+              },
+            },
+          ],
         },
       },
-      { $sort: { _id: 1 } },
     ]),
 
-    Revision.aggregate<{ count: number }>([
-      { $match: { userId: uid, completed: false } },
-      { $count: "count" },
+    Revision.aggregate<{
+      pending: Array<{ count: number }>;
+      byWeek: Array<{ _id: string; count: number }>;
+    }>([
+      { $match: { userId: uid } },
+      {
+        $facet: {
+          pending: [
+            { $match: { completed: false } },
+            { $count: "count" },
+          ],
+          byWeek: [
+            {
+              $match: {
+                completed: true,
+                completedAt: { $gte: weekRangeStart },
+              },
+            },
+            {
+              $group: {
+                _id: {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: {
+                      $dateTrunc: {
+                        date: "$completedAt",
+                        unit: "week",
+                        startOfWeek: "monday",
+                      },
+                    },
+                  },
+                },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { _id: 1 } },
+          ],
+        },
+      },
     ]),
   ]);
 
-  const summaryRow = summaryRows[0];
+  const problems = problemFacet[0];
+  const revisions = revisionFacet[0];
+  const summaryRow = problems?.summary[0];
+
   const summary: AnalyticsSummary = {
     problemsAdded: summaryRow?.problemsAdded ?? 0,
     solvedMyself: summaryRow?.solvedMyself ?? 0,
     neededHelp: summaryRow?.neededHelp ?? 0,
-    pendingRevisions: pendingRows[0]?.count ?? 0,
+    pendingRevisions: revisions?.pending[0]?.count ?? 0,
   };
 
   const dayCounts = new Map(
-    problemsByDayRows.map((row) => [row._id, row.count]),
+    (problems?.problemsByDay ?? []).map((row) => [row._id, row.count]),
   );
   const problemsByDay = fillDailySeries(dayRangeStart, today, dayCounts);
 
   const attemptCounts = new Map(
-    attemptTypeRows.map((row) => [row._id, row.count]),
+    (problems?.attemptTypes ?? []).map((row) => [row._id, row.count]),
   );
   const attemptTypeBreakdown: AttemptTypeCount[] = ATTEMPT_TYPES.map(
     (attemptType) => ({
@@ -216,7 +227,7 @@ export async function getAnalytics(userId: string): Promise<AnalyticsData> {
   );
 
   const weekCounts = new Map(
-    revisionsByWeekRows.map((row) => [row._id, row.count]),
+    (revisions?.byWeek ?? []).map((row) => [row._id, row.count]),
   );
   const revisionsByWeek = fillWeeklySeries(
     weekRangeStart,

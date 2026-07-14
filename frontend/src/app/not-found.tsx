@@ -13,9 +13,7 @@ export default function NotFoundPage() {
       <p className="text-muted-foreground text-sm">
         The page you requested does not exist.
       </p>
-      <Link href="/">
-        <Button>Go home</Button>
-      </Link>
+      <Button render={<Link href="/" />}>Go home</Button>
     </div>
   );
 }

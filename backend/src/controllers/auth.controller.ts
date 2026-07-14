@@ -21,6 +21,7 @@ import {
   toAuthUser,
   updateProfile,
 } from "../services/auth.service.js";
+import { sendPasswordResetEmail } from "../services/mail.service.js";
 import { parseOrThrow } from "../utils/validation.js";
 
 const registerSchema = z.object({
@@ -170,6 +171,47 @@ export const authController = {
     sendSuccess(res, { user: toAuthUser(user) });
   }),
 
+  /** Exchange httpOnly cookies (e.g. after OAuth) for SPA token payload. */
+  session: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.userId) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    const cookieRefresh = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+    if (cookieRefresh) {
+      const { accessToken, refreshToken, user: refreshed } =
+        await rotateRefreshToken(res, cookieRefresh);
+      sendSuccess(
+        res,
+        {
+          accessToken,
+          refreshToken,
+          token: accessToken,
+          user: toAuthUser(refreshed),
+        },
+        "Session established",
+      );
+      return;
+    }
+
+    const { accessToken, refreshToken } = await issueTokenPair(res, user);
+    sendSuccess(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        token: accessToken,
+        user: toAuthUser(user),
+      },
+      "Session established",
+    );
+  }),
+
   updateProfile: asyncHandler(async (req: Request, res: Response) => {
     if (!req.userId) {
       throw new AppError("Authentication required", 401);
@@ -198,7 +240,7 @@ export const authController = {
 
     if (result) {
       const resetUrl = buildResetUrl(result.resetToken);
-      console.info(`[auth] Password reset link for ${email}: ${resetUrl}`);
+      await sendPasswordResetEmail(email, resetUrl);
 
       if (env.NODE_ENV !== "production") {
         sendSuccess(
@@ -264,11 +306,17 @@ export const authController = {
               return;
             }
 
-            let user =
-              (await User.findOne({ googleId: profile.googleId })) ??
-              (await User.findOne({ email: profile.email }));
+            let user = await User.findOne({ googleId: profile.googleId });
 
             if (!user) {
+              const emailTaken = await User.findOne({ email: profile.email });
+              if (emailTaken) {
+                res.redirect(
+                  `${env.CLIENT_URL}/login?error=google_email_in_use`,
+                );
+                return;
+              }
+
               user = await User.create({
                 name: profile.name,
                 email: profile.email,
@@ -276,21 +324,10 @@ export const authController = {
                 googleId: profile.googleId,
                 provider: "google",
               });
-            } else if (!user.googleId) {
-              user.googleId = profile.googleId;
-              if (profile.avatar && !user.avatar) {
-                user.avatar = profile.avatar;
-              }
-              await user.save();
             }
 
-            const { accessToken, refreshToken } = await issueTokenPair(res, user);
-            const params = new URLSearchParams({
-              token: accessToken,
-              accessToken,
-              refreshToken,
-            });
-            res.redirect(`${env.CLIENT_URL}/auth/callback?${params.toString()}`);
+            await issueTokenPair(res, user);
+            res.redirect(`${env.CLIENT_URL}/auth/callback`);
           } catch {
             res.redirect(`${env.CLIENT_URL}/login?error=google_auth_failed`);
           }

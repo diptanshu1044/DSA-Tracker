@@ -11,6 +11,7 @@ import { setAuthCookies } from "../utils/cookies.js";
 import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import { AppError } from "../utils/AppError.js";
 import { parseObjectId } from "../utils/objectId.js";
+import { safeEqualString } from "../utils/safeEqual.js";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -73,7 +74,7 @@ export async function rotateRefreshToken(
     throw new AppError("Invalid or expired refresh token", 401);
   }
 
-  if (user.refreshTokenHash !== hashToken(refreshToken)) {
+  if (!safeEqualString(user.refreshTokenHash, hashToken(refreshToken))) {
     user.refreshTokenHash = undefined;
     await user.save();
     throw new AppError("Invalid or expired refresh token", 401);

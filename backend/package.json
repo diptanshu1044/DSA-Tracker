@@ -14,7 +14,12 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\"",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["dsa", "tracker", "express", "mongodb"],
+  "keywords": [
+    "dsa",
+    "tracker",
+    "express",
+    "mongodb"
+  ],
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
@@ -23,11 +28,12 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-validator": "^7.3.2",
+    "express-rate-limit": "^8.5.2",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
+    "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "zod": "^4.4.3"
@@ -41,6 +47,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^26.1.1",
+    "@types/nodemailer": "^8.0.1",
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
     "@typescript-eslint/eslint-plugin": "^8.64.0",

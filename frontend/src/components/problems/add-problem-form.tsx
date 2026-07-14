@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +23,25 @@ import {
   type CreateProblemPayload,
 } from "@/lib/validations/problem";
 import { problemApi } from "@/services/problem.service";
+import { dashboardApi } from "@/services/dashboard.service";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { PENDING_REVISION_LIMIT } from "@/types/api";
 
 export function AddProblemForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  const canAddQuery = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      const result = await dashboardApi.get();
+      return result.dashboard;
+    },
+  });
+
+  const canAddProblem = canAddQuery.data?.canAddProblem ?? true;
+  const pending = canAddQuery.data?.stats.pendingRevisions;
 
   const {
     register,
@@ -89,6 +102,20 @@ export function AddProblemForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
+        {!canAddQuery.isLoading && !canAddProblem ? (
+          <div
+            role="alert"
+            className="border-amber-500/30 bg-amber-500/10 mb-5 rounded-lg border px-3 py-3 text-sm"
+          >
+            You have {pending ?? "too many"} pending revisions (limit{" "}
+            {PENDING_REVISION_LIMIT}).{" "}
+            <Link href="/revisions" className="underline underline-offset-4">
+              Complete some revisions
+            </Link>{" "}
+            before adding new problems.
+          </div>
+        ) : null}
+
         <form
           className="space-y-5"
           onSubmit={handleSubmit((values) =>
@@ -109,10 +136,14 @@ export function AddProblemForm() {
               id="title"
               placeholder="Two Sum"
               autoComplete="off"
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={errors.title ? "title-error" : undefined}
               {...register("title")}
             />
             {errors.title ? (
-              <p className="text-destructive text-sm">{errors.title.message}</p>
+              <p id="title-error" role="alert" className="text-destructive text-sm">
+                {errors.title.message}
+              </p>
             ) : null}
           </div>
 
@@ -123,15 +154,19 @@ export function AddProblemForm() {
               type="url"
               placeholder="https://leetcode.com/problems/two-sum"
               autoComplete="off"
+              aria-invalid={Boolean(errors.url)}
+              aria-describedby={errors.url ? "url-error" : undefined}
               {...register("url")}
             />
             {errors.url ? (
-              <p className="text-destructive text-sm">{errors.url.message}</p>
+              <p id="url-error" role="alert" className="text-destructive text-sm">
+                {errors.url.message}
+              </p>
             ) : null}
           </div>
 
           <div className="space-y-3">
-            <Label>Attempt</Label>
+            <Label id="attempt-label">Attempt</Label>
             <Controller
               name="attemptType"
               control={control}
@@ -139,7 +174,7 @@ export function AddProblemForm() {
                 <div
                   className="flex flex-col gap-2"
                   role="radiogroup"
-                  aria-label="Attempt"
+                  aria-labelledby="attempt-label"
                 >
                   {ATTEMPT_TYPE_OPTIONS.map((option) => {
                     const selected = field.value === option.value;
@@ -170,7 +205,7 @@ export function AddProblemForm() {
               )}
             />
             {errors.attemptType ? (
-              <p className="text-destructive text-sm">
+              <p role="alert" className="text-destructive text-sm">
                 {errors.attemptType.message}
               </p>
             ) : null}
@@ -191,28 +226,43 @@ export function AddProblemForm() {
               max={1440}
               step={1}
               placeholder="45"
+              aria-invalid={Boolean(errors.timeTaken)}
+              aria-describedby={
+                errors.timeTaken ? "timeTaken-error" : undefined
+              }
               {...register("timeTaken")}
             />
             {errors.timeTaken ? (
-              <p className="text-destructive text-sm">
+              <p
+                id="timeTaken-error"
+                role="alert"
+                className="text-destructive text-sm"
+              >
                 {errors.timeTaken.message}
               </p>
             ) : null}
           </div>
 
           {errors.root ? (
-            <p className="text-destructive text-sm">{errors.root.message}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.root.message}
+            </p>
           ) : null}
 
           <div className="flex flex-wrap gap-3 pt-1">
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !canAddProblem}
+            >
               {mutation.isPending ? "Saving..." : "Add Problem"}
             </Button>
-            <Link href="/dashboard">
-              <Button type="button" variant="outline">
-                Cancel
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              render={<Link href="/dashboard" />}
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       </CardContent>

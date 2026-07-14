@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AnalyticsCharts } from "@/components/analytics/analytics-charts";
 import { AnalyticsStats } from "@/components/analytics/analytics-stats";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
@@ -50,10 +51,7 @@ export function AnalyticsView() {
 
     return (
       <div className="space-y-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground text-sm">{message}</p>
-        </div>
+        <PageHeader title="Analytics" description={message} />
         <Button type="button" variant="outline" onClick={() => void refetch()}>
           Try again
         </Button>
@@ -63,12 +61,10 @@ export function AnalyticsView() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground text-sm">
-          Track how you add problems, seek help, and complete revisions.
-        </p>
-      </div>
+      <PageHeader
+        title="Analytics"
+        description="Track how you add problems, seek help, and complete revisions."
+      />
 
       <AnalyticsStats summary={data.summary} />
 
@@ -79,7 +75,9 @@ export function AnalyticsView() {
       />
 
       {isFetching ? (
-        <p className="text-muted-foreground text-xs">Refreshing…</p>
+        <p className="text-muted-foreground text-xs" aria-live="polite">
+          Refreshing…
+        </p>
       ) : null}
     </div>
   );

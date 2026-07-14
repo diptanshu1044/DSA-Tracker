@@ -16,16 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getInitials } from "@/lib/initials";
 import { useAuth } from "@/providers/auth-provider";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export function Navbar() {
   const router = useRouter();
@@ -60,12 +52,17 @@ export function Navbar() {
 
           {user ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex h-9 items-center gap-2 rounded-lg px-2 hover:bg-muted">
+              <DropdownMenuTrigger
+                className="hover:bg-muted inline-flex h-9 items-center gap-2 rounded-lg px-2"
+                aria-label="Account menu"
+              >
                 <Avatar className="size-7">
                   {user.avatar ? (
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={user.avatar} alt="" />
                   ) : null}
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                  <AvatarFallback aria-hidden>
+                    {getInitials(user.name)}
+                  </AvatarFallback>
                 </Avatar>
                 <span className="hidden max-w-[140px] truncate text-sm sm:inline">
                   {user.name}
@@ -81,15 +78,11 @@ export function Navbar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => router.push("/profile")}
-                >
+                <DropdownMenuItem onClick={() => router.push("/profile")}>
                   <UserIcon className="size-4" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => router.push("/settings")}
-                >
+                <DropdownMenuItem onClick={() => router.push("/settings")}>
                   <Settings className="size-4" />
                   Settings
                 </DropdownMenuItem>
@@ -101,9 +94,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link href="/login">
-              <Button>Sign in</Button>
-            </Link>
+            <Button render={<Link href="/login" />}>Sign in</Button>
           )}
         </div>
       </div>

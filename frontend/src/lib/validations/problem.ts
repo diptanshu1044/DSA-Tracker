@@ -40,3 +40,7 @@ export const createProblemSchema = z.object({
 
 export type CreateProblemFormValues = z.input<typeof createProblemSchema>;
 export type CreateProblemPayload = z.output<typeof createProblemSchema>;
+
+export const updateProblemSchema = createProblemSchema.partial();
+export type UpdateProblemFormValues = z.input<typeof updateProblemSchema>;
+export type UpdateProblemPayload = z.output<typeof updateProblemSchema>;

@@ -7,8 +7,8 @@ import {
   listRevisions,
   updateRevision,
 } from "../services/revision.service.js";
-import { AppError } from "../utils/AppError.js";
 import { paramId } from "../utils/params.js";
+import { requireUserId } from "../utils/requireUser.js";
 import { sendMessage, sendSuccess } from "../utils/response.js";
 import { parseOrThrow } from "../utils/validation.js";
 import {
@@ -16,13 +16,6 @@ import {
   listRevisionsQuerySchema,
   updateRevisionSchema,
 } from "../validators/revision.validators.js";
-
-function requireUserId(req: Request): string {
-  if (!req.userId) {
-    throw new AppError("Authentication required", 401);
-  }
-  return req.userId;
-}
 
 export const revisionController = {
   create: asyncHandler(async (req: Request, res: Response) => {
