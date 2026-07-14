@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 
 router.post("/", revisionController.create);
+router.post("/schedule-additional", revisionController.scheduleAdditional);
 router.get("/", revisionController.list);
 router.get("/:id", revisionController.getById);
 router.patch("/:id", revisionController.update);

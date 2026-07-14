@@ -1,6 +1,11 @@
 import { apiRequest } from "@/lib/api";
 import { dueBeforeEndOfTodayUtc } from "@/lib/dates";
-import type { PaginationMeta, Revision } from "@/types/api";
+import type {
+  AdditionalRevisionDays,
+  MarkRevisionCompletedResult,
+  PaginationMeta,
+  Revision,
+} from "@/types/api";
 
 export interface ListRevisionsParams {
   problemId?: string;
@@ -54,10 +59,18 @@ export const revisionApi = {
   },
 
   markCompleted(id: string) {
-    return apiRequest<{ revision: Revision }>({
+    return apiRequest<MarkRevisionCompletedResult>({
       method: "PATCH",
       url: `/revisions/${id}`,
       data: { completed: true },
+    });
+  },
+
+  scheduleAdditional(problemId: string, days: AdditionalRevisionDays) {
+    return apiRequest<{ revision: Revision }>({
+      method: "POST",
+      url: "/revisions/schedule-additional",
+      data: { problemId, days },
     });
   },
 };

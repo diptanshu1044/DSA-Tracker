@@ -5,6 +5,7 @@ import {
   deleteRevision,
   getRevisionById,
   listRevisions,
+  scheduleAdditionalRevision,
   updateRevision,
 } from "../services/revision.service.js";
 import { paramId } from "../utils/params.js";
@@ -14,6 +15,7 @@ import { parseOrThrow } from "../utils/validation.js";
 import {
   createRevisionSchema,
   listRevisionsQuerySchema,
+  scheduleAdditionalRevisionSchema,
   updateRevisionSchema,
 } from "../validators/revision.validators.js";
 
@@ -46,8 +48,25 @@ export const revisionController = {
     const userId = requireUserId(req);
     const revisionId = paramId(req.params.id, "revision id");
     const input = parseOrThrow(updateRevisionSchema, req.body);
-    const revision = await updateRevision(userId, revisionId, input);
-    sendSuccess(res, { revision }, "Revision updated");
+    const { revision, revisionCycleComplete } = await updateRevision(
+      userId,
+      revisionId,
+      input,
+    );
+    sendSuccess(
+      res,
+      { revision, revisionCycleComplete },
+      revisionCycleComplete
+        ? "Revision cycle complete"
+        : "Revision updated",
+    );
+  }),
+
+  scheduleAdditional: asyncHandler(async (req: Request, res: Response) => {
+    const userId = requireUserId(req);
+    const input = parseOrThrow(scheduleAdditionalRevisionSchema, req.body);
+    const revision = await scheduleAdditionalRevision(userId, input);
+    sendSuccess(res, { revision }, "Additional revision scheduled", 201);
   }),
 
   remove: asyncHandler(async (req: Request, res: Response) => {

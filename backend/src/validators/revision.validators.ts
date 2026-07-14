@@ -42,6 +42,24 @@ export const listRevisionsQuerySchema = paginationQuerySchema.extend({
   dueAfter: z.coerce.date().optional(),
 });
 
+/** Extra post-cycle reviews: only 3, 7, or 10 days. */
+export const ADDITIONAL_REVISION_DAYS = [3, 7, 10] as const;
+
+export const scheduleAdditionalRevisionSchema = z.object({
+  problemId: objectIdString,
+  days: z.coerce
+    .number()
+    .int()
+    .refine(
+      (value): value is (typeof ADDITIONAL_REVISION_DAYS)[number] =>
+        (ADDITIONAL_REVISION_DAYS as readonly number[]).includes(value),
+      { message: "Days must be 3, 7, or 10" },
+    ),
+});
+
 export type CreateRevisionInput = z.infer<typeof createRevisionSchema>;
 export type UpdateRevisionInput = z.infer<typeof updateRevisionSchema>;
 export type ListRevisionsQuery = z.infer<typeof listRevisionsQuerySchema>;
+export type ScheduleAdditionalRevisionInput = z.infer<
+  typeof scheduleAdditionalRevisionSchema
+>;

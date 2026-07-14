@@ -114,6 +114,16 @@ export interface Revision {
   updatedAt: string;
 }
 
+/** Allowed day offsets for post-cycle additional revisions. */
+export const ADDITIONAL_REVISION_DAYS = [3, 7, 10] as const;
+export type AdditionalRevisionDays =
+  (typeof ADDITIONAL_REVISION_DAYS)[number];
+
+export interface MarkRevisionCompletedResult {
+  revision: Revision;
+  revisionCycleComplete: boolean;
+}
+
 /** Block adding problems when pending revisions exceed this count. */
 export const PENDING_REVISION_LIMIT = 20;
 
