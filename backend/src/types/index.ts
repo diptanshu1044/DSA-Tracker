@@ -1,6 +1,6 @@
 export type AuthProvider = "local" | "google";
 
-export type JwtTokenType = "access" | "refresh";
+export type JwtTokenType = "access" | "refresh" | "oauth";
 
 export type AttemptType = "SELF" | "HINT" | "VIDEO";
 

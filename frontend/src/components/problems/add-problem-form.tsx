@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   ATTEMPT_TYPE_OPTIONS,
   CONFIDENCE_OPTIONS,
@@ -97,216 +98,227 @@ export function AddProblemForm() {
   });
 
   return (
-    <Card className="max-w-xl border-none shadow-none">
-      <CardHeader className="space-y-1 px-0 pt-0">
-        <CardTitle className="text-2xl">Add Problem</CardTitle>
-        <CardDescription>
-          Paste a LeetCode link. Title, difficulty, and topics are fetched
-          automatically. Hints and solutions schedule revisions for tomorrow and
-          in 7 days; solving yourself skips revisions.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-0">
-        {!canAddQuery.isLoading && !canAddProblem ? (
-          <div
-            role="alert"
-            className="border-amber-500/30 bg-amber-500/10 mb-5 rounded-lg border px-3 py-3 text-sm"
-          >
-            You have {pending ?? "too many"} pending revisions (limit{" "}
-            {PENDING_REVISION_LIMIT}).{" "}
-            <Link href="/revisions" className="underline underline-offset-4">
-              Complete some revisions
-            </Link>{" "}
-            before adding new problems.
-          </div>
-        ) : null}
+    <div className="mx-auto max-w-xl space-y-6">
+      <PageHeader
+        title="Add Problem"
+        description="Paste a LeetCode link. Title, difficulty, and topics are fetched automatically."
+      />
 
-        <form
-          className="space-y-5"
-          onSubmit={handleSubmit((values) =>
-            mutation.mutate({
-              url: values.url,
-              attemptType: values.attemptType,
-              ...(values.timeTaken !== undefined
-                ? { timeTaken: values.timeTaken }
-                : {}),
-              ...(values.confidence !== undefined
-                ? { confidence: values.confidence }
-                : {}),
-            }),
-          )}
-          noValidate
+      {!canAddQuery.isLoading && !canAddProblem ? (
+        <div
+          role="alert"
+          className="border-amber-500/30 bg-amber-500/10 mb-0 rounded-xl border px-4 py-3 text-sm"
         >
-          <div className="space-y-2">
-            <Label htmlFor="url">LeetCode Problem URL</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://leetcode.com/problems/two-sum/"
-              autoComplete="off"
-              aria-invalid={Boolean(errors.url)}
-              aria-describedby={errors.url ? "url-error" : undefined}
-              {...register("url")}
-            />
-            {errors.url ? (
-              <p id="url-error" role="alert" className="text-destructive text-sm">
-                {errors.url.message}
-              </p>
-            ) : null}
-          </div>
+          You have {pending ?? "too many"} pending revisions (limit{" "}
+          {PENDING_REVISION_LIMIT}).{" "}
+          <Link href="/revisions" className="underline underline-offset-4">
+            Complete some revisions
+          </Link>{" "}
+          before adding new problems.
+        </div>
+      ) : null}
 
-          <div className="space-y-3">
-            <Label id="attempt-label">Attempt Type</Label>
-            <Controller
-              name="attemptType"
-              control={control}
-              render={({ field }) => (
-                <div
-                  className="flex flex-col gap-2"
-                  role="radiogroup"
-                  aria-labelledby="attempt-label"
+      <Card>
+        <CardHeader>
+          <CardTitle>Problem details</CardTitle>
+          <CardDescription>
+            Hints and solutions schedule revisions for tomorrow and in 7 days;
+            solving yourself skips revisions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={handleSubmit((values) =>
+              mutation.mutate({
+                url: values.url,
+                attemptType: values.attemptType,
+                ...(values.timeTaken !== undefined
+                  ? { timeTaken: values.timeTaken }
+                  : {}),
+                ...(values.confidence !== undefined
+                  ? { confidence: values.confidence }
+                  : {}),
+              }),
+            )}
+            noValidate
+          >
+            <div className="space-y-2">
+              <Label htmlFor="url">LeetCode Problem URL</Label>
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://leetcode.com/problems/two-sum/"
+                autoComplete="off"
+                aria-invalid={Boolean(errors.url)}
+                aria-describedby={errors.url ? "url-error" : undefined}
+                {...register("url")}
+              />
+              {errors.url ? (
+                <p
+                  id="url-error"
+                  role="alert"
+                  className="text-destructive text-sm"
                 >
-                  {ATTEMPT_TYPE_OPTIONS.map((option) => {
-                    const selected = field.value === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        className={cn(
-                          "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                          selected
-                            ? "border-foreground/30 bg-muted/40"
-                            : "border-border",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          className="accent-foreground size-4"
-                          name={field.name}
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => field.onChange(option.value)}
-                          onBlur={field.onBlur}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            />
-            {errors.attemptType ? (
+                  {errors.url.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label id="attempt-label">Attempt type</Label>
+              <Controller
+                name="attemptType"
+                control={control}
+                render={({ field }) => (
+                  <div
+                    className="flex flex-col gap-2"
+                    role="radiogroup"
+                    aria-labelledby="attempt-label"
+                  >
+                    {ATTEMPT_TYPE_OPTIONS.map((option) => {
+                      const selected = field.value === option.value;
+                      return (
+                        <label
+                          key={option.value}
+                          className={cn(
+                            "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors",
+                            selected
+                              ? "border-foreground/30 bg-muted/40"
+                              : "border-border",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            className="accent-foreground size-4 shrink-0"
+                            name={field.name}
+                            value={option.value}
+                            checked={selected}
+                            onChange={() => field.onChange(option.value)}
+                            onBlur={field.onBlur}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              />
+              {errors.attemptType ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {errors.attemptType.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timeTaken">
+                Time taken{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional, minutes)
+                </span>
+              </Label>
+              <Input
+                id="timeTaken"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={1440}
+                step={1}
+                placeholder="45"
+                aria-invalid={Boolean(errors.timeTaken)}
+                aria-describedby={
+                  errors.timeTaken ? "timeTaken-error" : undefined
+                }
+                {...register("timeTaken")}
+              />
+              {errors.timeTaken ? (
+                <p
+                  id="timeTaken-error"
+                  role="alert"
+                  className="text-destructive text-sm"
+                >
+                  {errors.timeTaken.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label id="confidence-label">
+                Confidence{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
+              </Label>
+              <Controller
+                name="confidence"
+                control={control}
+                render={({ field }) => (
+                  <div
+                    className="grid grid-cols-3 gap-2"
+                    role="radiogroup"
+                    aria-labelledby="confidence-label"
+                  >
+                    {CONFIDENCE_OPTIONS.map((option) => {
+                      const selected = field.value === option.value;
+                      return (
+                        <label
+                          key={option.value}
+                          className={cn(
+                            "flex cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-sm transition-colors",
+                            selected
+                              ? "border-foreground/20 bg-muted"
+                              : "hover:bg-muted/60",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            className="sr-only"
+                            name={field.name}
+                            value={option.value}
+                            checked={selected}
+                            onChange={() => field.onChange(option.value)}
+                            onBlur={field.onBlur}
+                          />
+                          {option.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              />
+              {errors.confidence ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {errors.confidence.message}
+                </p>
+              ) : null}
+            </div>
+
+            {errors.root ? (
               <p role="alert" className="text-destructive text-sm">
-                {errors.attemptType.message}
+                {errors.root.message}
               </p>
             ) : null}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="timeTaken">
-              Time Taken{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional, minutes)
-              </span>
-            </Label>
-            <Input
-              id="timeTaken"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={1440}
-              step={1}
-              placeholder="45"
-              aria-invalid={Boolean(errors.timeTaken)}
-              aria-describedby={
-                errors.timeTaken ? "timeTaken-error" : undefined
-              }
-              {...register("timeTaken")}
-            />
-            {errors.timeTaken ? (
-              <p
-                id="timeTaken-error"
-                role="alert"
-                className="text-destructive text-sm"
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                type="submit"
+                disabled={mutation.isPending || !canAddProblem}
               >
-                {errors.timeTaken.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-3">
-            <Label id="confidence-label">
-              Confidence{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
-            </Label>
-            <Controller
-              name="confidence"
-              control={control}
-              render={({ field }) => (
-                <div
-                  className="flex flex-col gap-2"
-                  role="radiogroup"
-                  aria-labelledby="confidence-label"
-                >
-                  {CONFIDENCE_OPTIONS.map((option) => {
-                    const selected = field.value === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        className={cn(
-                          "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                          selected
-                            ? "border-foreground/30 bg-muted/40"
-                            : "border-border",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          className="accent-foreground size-4"
-                          name={field.name}
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => field.onChange(option.value)}
-                          onBlur={field.onBlur}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            />
-            {errors.confidence ? (
-              <p role="alert" className="text-destructive text-sm">
-                {errors.confidence.message}
-              </p>
-            ) : null}
-          </div>
-
-          {errors.root ? (
-            <p role="alert" className="text-destructive text-sm">
-              {errors.root.message}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-3 pt-1">
-            <Button
-              type="submit"
-              disabled={mutation.isPending || !canAddProblem}
-            >
-              {mutation.isPending ? "Saving..." : "Add Problem"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              render={<Link href="/problems" />}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+                {mutation.isPending ? "Saving..." : "Add Problem"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={mutation.isPending}
+                render={<Link href="/problems" />}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

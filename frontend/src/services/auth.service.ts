@@ -71,6 +71,14 @@ export const authApi = {
     });
   },
 
+  exchangeOAuthCode(code: string) {
+    return apiRequest<AuthPayload>({
+      method: "POST",
+      url: "/auth/google/exchange",
+      data: { code },
+    });
+  },
+
   updateProfile(data: { name: string }) {
     return apiRequest<{ user: User }>({
       method: "PATCH",

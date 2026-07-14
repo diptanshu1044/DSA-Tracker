@@ -47,5 +47,10 @@ router.post(
 );
 router.get("/google", authLimiter, authController.googleAuth);
 router.get("/google/callback", authController.googleCallback);
+router.post(
+  "/google/exchange",
+  authLimiter,
+  authController.exchangeOAuthCode,
+);
 
 export default router;

@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Response, CookieOptions } from "express";
 import { env } from "../config/env.js";
 import { parseDurationMs } from "./duration.js";
 
@@ -17,11 +17,16 @@ const REFRESH_MAX_AGE_MS = parseDurationMs(
   7 * 24 * 60 * 60 * 1000,
 );
 
-function cookieOptions(maxAge: number) {
+/**
+ * Cross-origin SPA (e.g. Vercel) + API (e.g. Render) needs SameSite=None.
+ * Browsers require Secure whenever SameSite is None.
+ */
+function cookieOptions(maxAge: number): CookieOptions {
+  const secure = env.COOKIE_SECURE || env.NODE_ENV === "production";
   return {
     httpOnly: true,
-    secure: env.COOKIE_SECURE || env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure,
+    sameSite: secure ? "none" : "lax",
     maxAge,
     path: "/",
   };
@@ -37,12 +42,8 @@ export function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response): void {
-  const base = {
-    httpOnly: true,
-    secure: env.COOKIE_SECURE || env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-  };
+  const base = cookieOptions(0);
+  delete base.maxAge;
 
   res.clearCookie(ACCESS_COOKIE, base);
   res.clearCookie(REFRESH_COOKIE, base);

@@ -50,6 +50,24 @@ export function verifyRefreshToken(token: string): JwtPayload {
   return decoded;
 }
 
+/** Short-lived code for Google OAuth → SPA handoff (avoids cross-site cookies). */
+export function signOAuthHandoffToken(claims: TokenClaims): string {
+  return signTypedToken(claims, "oauth", env.JWT_SECRET, "2m");
+}
+
+export function verifyOAuthHandoffToken(token: string): JwtPayload {
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    if (decoded.type !== "oauth") {
+      throw new AppError("Invalid OAuth handoff token", 401);
+    }
+    return decoded;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError("Invalid or expired OAuth handoff token", 401);
+  }
+}
+
 /** @deprecated Use signAccessToken */
 export function signToken(claims: TokenClaims): string {
   return signAccessToken(claims);

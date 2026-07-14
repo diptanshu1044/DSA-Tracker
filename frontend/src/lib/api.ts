@@ -93,7 +93,8 @@ function createClient(): AxiosInstance {
         url.includes("/auth/register") ||
         url.includes("/auth/refresh") ||
         url.includes("/auth/forgot-password") ||
-        url.includes("/auth/reset-password");
+        url.includes("/auth/reset-password") ||
+        url.includes("/auth/google/exchange");
 
       if (
         status === 401 &&

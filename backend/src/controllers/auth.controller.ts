@@ -22,6 +22,10 @@ import {
   updateProfile,
 } from "../services/auth.service.js";
 import { sendPasswordResetEmail } from "../services/mail.service.js";
+import {
+  signOAuthHandoffToken,
+  verifyOAuthHandoffToken,
+} from "../utils/jwt.js";
 import { parseOrThrow } from "../utils/validation.js";
 
 const registerSchema = z.object({
@@ -46,6 +50,10 @@ const resetPasswordSchema = z.object({
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1).optional(),
+});
+
+const oauthExchangeSchema = z.object({
+  code: z.string().min(1, "OAuth code is required"),
 });
 
 const updateProfileSchema = z.object({
@@ -326,8 +334,14 @@ export const authController = {
               });
             }
 
-            await issueTokenPair(res, user);
-            res.redirect(`${env.CLIENT_URL}/auth/callback`);
+            // Cross-site SPAs cannot read API cookies; hand off via short-lived code.
+            const code = signOAuthHandoffToken({
+              userId: user._id.toString(),
+              email: user.email,
+            });
+            res.redirect(
+              `${env.CLIENT_URL}/auth/callback?code=${encodeURIComponent(code)}`,
+            );
           } catch {
             res.redirect(`${env.CLIENT_URL}/login?error=google_auth_failed`);
           }
@@ -335,4 +349,27 @@ export const authController = {
       },
     )(req, res, next);
   },
+
+  /** Exchange OAuth handoff code for SPA tokens (works across Vercel ↔ Render). */
+  exchangeOAuthCode: asyncHandler(async (req: Request, res: Response) => {
+    const { code } = parseOrThrow(oauthExchangeSchema, req.body);
+    const payload = verifyOAuthHandoffToken(code);
+
+    const user = await User.findById(payload.userId);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    const { accessToken, refreshToken } = await issueTokenPair(res, user);
+    sendSuccess(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        token: accessToken,
+        user: toAuthUser(user),
+      },
+      "Signed in with Google",
+    );
+  }),
 };
