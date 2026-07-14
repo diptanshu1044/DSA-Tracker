@@ -9,6 +9,8 @@ router.post("/login", authController.login);
 router.post("/refresh", authController.refresh);
 router.post("/logout", optionalAuthenticate, authController.logout);
 router.get("/me", authenticate, authController.me);
+router.patch("/me", authenticate, authController.updateProfile);
+router.delete("/me", authenticate, authController.deleteAccount);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 router.get("/google", authController.googleAuth);

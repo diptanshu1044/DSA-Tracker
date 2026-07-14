@@ -2,12 +2,15 @@ import bcrypt from "bcryptjs";
 import type { Response } from "express";
 import { env } from "../config/env.js";
 import { PasswordResetToken } from "../models/PasswordResetToken.js";
+import { Problem } from "../models/Problem.js";
+import { Revision } from "../models/Revision.js";
 import { User, type IUserDocument } from "../models/User.js";
 import type { AuthUser } from "../types/index.js";
 import { generateOpaqueToken, hashToken } from "../utils/crypto.js";
 import { setAuthCookies } from "../utils/cookies.js";
 import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import { AppError } from "../utils/AppError.js";
+import { parseObjectId } from "../utils/objectId.js";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -140,4 +143,34 @@ export async function resetPasswordWithToken(
   ]);
 
   return user;
+}
+
+export async function updateProfile(
+  userId: string,
+  input: { name: string },
+): Promise<IUserDocument> {
+  const user = await User.findById(parseObjectId(userId, "user id"));
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  user.name = input.name;
+  await user.save();
+  return user;
+}
+
+export async function deleteAccount(userId: string): Promise<void> {
+  const objectId = parseObjectId(userId, "user id");
+  const user = await User.findById(objectId);
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  await Promise.all([
+    Problem.deleteMany({ userId: objectId }),
+    Revision.deleteMany({ userId: objectId }),
+    PasswordResetToken.deleteMany({ userId: objectId }),
+  ]);
+
+  await user.deleteOne();
 }

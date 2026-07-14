@@ -12,12 +12,14 @@ import {
   buildResetUrl,
   comparePassword,
   createPasswordResetToken,
+  deleteAccount,
   hashPassword,
   issueTokenPair,
   resetPasswordWithToken,
   revokeRefreshToken,
   rotateRefreshToken,
   toAuthUser,
+  updateProfile,
 } from "../services/auth.service.js";
 import { parseOrThrow } from "../utils/validation.js";
 
@@ -43,6 +45,10 @@ const resetPasswordSchema = z.object({
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1).optional(),
+});
+
+const updateProfileSchema = z.object({
+  name: z.string().trim().min(1).max(100),
 });
 
 async function issueAuthResponse(
@@ -162,6 +168,27 @@ export const authController = {
     }
 
     sendSuccess(res, { user: toAuthUser(user) });
+  }),
+
+  updateProfile: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.userId) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const { name } = parseOrThrow(updateProfileSchema, req.body);
+    const user = await updateProfile(req.userId, { name });
+
+    sendSuccess(res, { user: toAuthUser(user) }, "Profile updated");
+  }),
+
+  deleteAccount: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.userId) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    await deleteAccount(req.userId);
+    clearAuthCookies(res);
+    sendMessage(res, "Account deleted successfully");
   }),
 
   forgotPassword: asyncHandler(async (req: Request, res: Response) => {
