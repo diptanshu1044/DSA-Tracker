@@ -25,6 +25,7 @@ import type {
   UpdateProblemInput,
 } from "../validators/problem.validators.js";
 import { assertCanAddProblem } from "./dashboard.service.js";
+import { findProblemIdsByStatus } from "./problem-status.js";
 import {
   createInitialReviewHistory,
   deleteReviewHistoryForProblem,
@@ -205,6 +206,15 @@ export async function listProblems(
     const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const prefix = new RegExp(`^${escaped}`, "i");
     filter.$or = [{ title: prefix }, { url: prefix }, { slug: prefix }];
+  }
+
+  if (query.topic) {
+    filter.topics = query.topic;
+  }
+
+  if (query.status) {
+    const ids = await findProblemIdsByStatus(userId, query.status);
+    filter._id = { $in: ids };
   }
 
   const skip = paginationSkip(query.page, query.limit);

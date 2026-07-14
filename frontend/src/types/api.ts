@@ -223,11 +223,94 @@ export interface RetryFailedRevisionResult {
 /** Block adding problems when pending revisions exceed this count. */
 export const PENDING_REVISION_LIMIT = 20;
 
+export const PROBLEM_STATUSES = [
+  "mastered",
+  "learning",
+  "need_review",
+  "overdue",
+  "new",
+  "forgotten",
+] as const;
+
+export type ProblemStatus = (typeof PROBLEM_STATUSES)[number];
+
 export interface AnalyticsSummary {
   problemsAdded: number;
   solvedMyself: number;
   neededHelp: number;
   pendingRevisions: number;
+  problemsSolved: number;
+  solvedWithoutHelp: number;
+  solvedUsingHint: number;
+  solvedUsingSolution: number;
+  reviewsCompleted: number;
+  currentStreak: number;
+  longestStreak: number;
+  totalStudyDays: number;
+  averageSolveTime: number | null;
+  averageReviewTime: number | null;
+  reviewSuccessRate: number | null;
+}
+
+export interface ActionableStats {
+  overdue: number;
+  dueToday: number;
+  learning: number;
+  mastered: number;
+  newProblems: number;
+  scheduledReviews: number;
+  forgotten: number;
+  weakestTopic: string | null;
+  strongestTopic: string | null;
+}
+
+export interface StatusBreakdown {
+  mastered: number;
+  learning: number;
+  needReview: number;
+  overdue: number;
+  newProblems: number;
+  forgotten: number;
+}
+
+export interface LearningMetrics {
+  firstAttemptSuccessRate: number | null;
+  averageReviewsBeforeMastery: number | null;
+  averageDaysToMaster: number | null;
+  problemsRequiringMultipleRetries: number;
+  longestLearningStreak: number;
+  fastestMasteredProblem: {
+    problemId: string;
+    title: string;
+    daysToMaster: number;
+  } | null;
+  mostReviewedProblem: {
+    problemId: string;
+    title: string;
+    reviewCount: number;
+  } | null;
+}
+
+export interface TopicStat {
+  topic: string;
+  problemsAdded: number;
+  learning: number;
+  mastered: number;
+  needReview: number;
+  overdue: number;
+  forgotten: number;
+  newProblems: number;
+  successRate: number | null;
+  activeProblems: number;
+}
+
+export interface AnalyticsTrends {
+  reviewsLast7Days: number;
+  reviewsLast30Days: number;
+  problemsMasteredThisMonth: number;
+  problemsAddedThisMonth: number;
+  reviewsByDay: AnalyticsDayCount[];
+  weeklyConsistency: number;
 }
 
 export interface AnalyticsDayCount {
@@ -247,6 +330,11 @@ export interface AnalyticsWeekCount {
 
 export interface Analytics {
   summary: AnalyticsSummary;
+  actionable: ActionableStats;
+  statusBreakdown: StatusBreakdown;
+  learningMetrics: LearningMetrics;
+  topicStats: TopicStat[];
+  trends: AnalyticsTrends;
   problemsByDay: AnalyticsDayCount[];
   attemptTypeBreakdown: AnalyticsAttemptTypeCount[];
   revisionsByWeek: AnalyticsWeekCount[];

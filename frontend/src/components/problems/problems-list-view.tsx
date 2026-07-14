@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Plus, Search, BookOpen } from "lucide-react";
+import { ExternalLink, Plus, Search, BookOpen, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +23,11 @@ import { formatShortDate } from "@/lib/dates";
 import { attemptTypeLabel } from "@/lib/revision";
 import { ATTEMPT_TYPE_OPTIONS } from "@/lib/validations/problem";
 import { problemApi } from "@/services/problem.service";
-import type { AttemptType } from "@/types/api";
+import {
+  PROBLEM_STATUSES,
+  type AttemptType,
+  type ProblemStatus,
+} from "@/types/api";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +38,26 @@ const FILTER_OPTIONS: Array<{ value: AttemptType | "ALL"; label: string }> = [
     label: option.label,
   })),
 ];
+
+const STATUS_LABELS: Record<ProblemStatus, string> = {
+  mastered: "Mastered",
+  learning: "Learning",
+  need_review: "Need Review",
+  overdue: "Overdue",
+  new: "New",
+  forgotten: "Forgotten",
+};
+
+function isProblemStatus(value: string | null): value is ProblemStatus {
+  return (
+    value != null &&
+    (PROBLEM_STATUSES as readonly string[]).includes(value)
+  );
+}
+
+function isAttemptType(value: string | null): value is AttemptType {
+  return value === "SELF" || value === "HINT" || value === "VIDEO";
+}
 
 function ProblemsListSkeleton() {
   return (
@@ -55,11 +80,32 @@ function ProblemsListSkeleton() {
   );
 }
 
-export function ProblemsListView() {
+function ProblemsListContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const statusParam = searchParams.get("status");
+  const topicParam = searchParams.get("topic");
+  const attemptTypeParam = searchParams.get("attemptType");
+
+  const statusFilter = isProblemStatus(statusParam) ? statusParam : null;
+  const topicFilter = topicParam?.trim() || null;
+  const initialAttemptType = isAttemptType(attemptTypeParam)
+    ? attemptTypeParam
+    : "ALL";
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [attemptType, setAttemptType] = useState<AttemptType | "ALL">("ALL");
+  const [attemptType, setAttemptType] = useState<AttemptType | "ALL">(
+    initialAttemptType,
+  );
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setAttemptType(initialAttemptType);
+    setPage(1);
+  }, [initialAttemptType, statusFilter, topicFilter]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -69,12 +115,35 @@ export function ProblemsListView() {
     return () => window.clearTimeout(id);
   }, [search]);
 
+  function updateAttemptType(next: AttemptType | "ALL") {
+    setAttemptType(next);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "ALL") {
+      params.delete("attemptType");
+    } else {
+      params.set("attemptType", next);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function clearStatusAndTopicFilters() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("status");
+    params.delete("topic");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "problems",
       {
         search: debouncedSearch,
         attemptType: attemptType === "ALL" ? undefined : attemptType,
+        status: statusFilter ?? undefined,
+        topic: topicFilter ?? undefined,
         page,
         limit: PAGE_SIZE,
       },
@@ -85,6 +154,8 @@ export function ProblemsListView() {
         limit: PAGE_SIZE,
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
         ...(attemptType !== "ALL" ? { attemptType } : {}),
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(topicFilter ? { topic: topicFilter } : {}),
       });
       return result;
     },
@@ -121,7 +192,11 @@ export function ProblemsListView() {
   }
 
   const { problems, pagination } = data;
-  const hasFilters = Boolean(debouncedSearch) || attemptType !== "ALL";
+  const hasFilters =
+    Boolean(debouncedSearch) ||
+    attemptType !== "ALL" ||
+    Boolean(statusFilter) ||
+    Boolean(topicFilter);
 
   return (
     <div className="space-y-6">
@@ -162,16 +237,35 @@ export function ProblemsListView() {
                 size="sm"
                 variant={selected ? "secondary" : "outline"}
                 aria-pressed={selected}
-                onClick={() => {
-                  setAttemptType(option.value);
-                  setPage(1);
-                }}
+                onClick={() => updateAttemptType(option.value)}
               >
                 {option.label}
               </Button>
             );
           })}
         </div>
+
+        {statusFilter || topicFilter ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {statusFilter ? (
+              <Badge variant="secondary">
+                Status: {STATUS_LABELS[statusFilter]}
+              </Badge>
+            ) : null}
+            {topicFilter ? (
+              <Badge variant="secondary">Topic: {topicFilter}</Badge>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={clearStatusAndTopicFilters}
+            >
+              <X className="size-3.5" />
+              Clear filters
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <Card>
@@ -189,14 +283,10 @@ export function ProblemsListView() {
           {problems.length === 0 ? (
             <EmptyState
               icon={hasFilters ? Search : BookOpen}
-              title={
-                hasFilters
-                  ? "No matching problems"
-                  : "No problems yet"
-              }
+              title={hasFilters ? "No matching problems" : "No problems yet"}
               description={
                 hasFilters
-                  ? "Try a different title or clear the attempt filter."
+                  ? "Try a different title or clear the active filters."
                   : "Problems you log will show up here."
               }
               action={
@@ -315,5 +405,13 @@ export function ProblemsListView() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+export function ProblemsListView() {
+  return (
+    <Suspense fallback={<ProblemsListSkeleton />}>
+      <ProblemsListContent />
+    </Suspense>
   );
 }

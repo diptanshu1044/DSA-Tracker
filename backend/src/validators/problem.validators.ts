@@ -47,9 +47,20 @@ export const updateProblemSchema = z
     { message: "At least one field is required" },
   );
 
+export const PROBLEM_STATUS_FILTERS = [
+  "mastered",
+  "learning",
+  "need_review",
+  "overdue",
+  "new",
+  "forgotten",
+] as const;
+
 export const listProblemsQuerySchema = paginationQuerySchema.extend({
   attemptType: z.enum(ATTEMPT_TYPES).optional(),
   search: z.string().trim().max(200).optional(),
+  status: z.enum(PROBLEM_STATUS_FILTERS).optional(),
+  topic: z.string().trim().min(1).max(100).optional(),
 });
 
 export type CreateProblemInput = z.infer<typeof createProblemSchema>;

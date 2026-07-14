@@ -4,6 +4,7 @@ import type {
   ConfidenceLevel,
   PaginationMeta,
   Problem,
+  ProblemStatus,
   ReviewHistoryEntry,
 } from "@/types/api";
 
@@ -26,6 +27,8 @@ export interface ListProblemsParams {
   limit?: number;
   attemptType?: AttemptType;
   search?: string;
+  status?: ProblemStatus;
+  topic?: string;
 }
 
 export interface ListProblemsResult {
@@ -41,6 +44,8 @@ function toQuery(
   if (params.limit !== undefined) query.limit = params.limit;
   if (params.attemptType) query.attemptType = params.attemptType;
   if (params.search) query.search = params.search;
+  if (params.status) query.status = params.status;
+  if (params.topic) query.topic = params.topic;
   return query;
 }
 
