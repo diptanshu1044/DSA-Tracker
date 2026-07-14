@@ -27,6 +27,7 @@ async function invalidateRevisionQueries(
 /**
  * Opens a performance dialog, marks a revision complete, and shows the
  * post-cycle dialog when no pending revisions remain for that problem.
+ * Failed reviews (Needed Solution) use one-click retry for tomorrow.
  */
 export function useCompleteRevision() {
   const queryClient = useQueryClient();
@@ -72,6 +73,24 @@ export function useCompleteRevision() {
     },
   });
 
+  const retryMutation = useMutation({
+    mutationFn: (id: string) => revisionApi.retryTomorrow(id),
+    onSuccess: async () => {
+      toast.success("Review rescheduled for tomorrow.");
+      setCompleteDialogOpen(false);
+      setPendingRevisionId(null);
+      setPendingRevisionLabel(undefined);
+      await invalidateRevisionQueries(queryClient);
+    },
+    onError: (error: Error) => {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Could not reschedule review for tomorrow.",
+      );
+    },
+  });
+
   const scheduleMutation = useMutation({
     mutationFn: ({
       problemId,
@@ -95,10 +114,14 @@ export function useCompleteRevision() {
     },
   });
 
-  const completingId =
-    completeMutation.isPending && completeMutation.variables
-      ? completeMutation.variables.id
-      : null;
+  const dialogBusy =
+    completeMutation.isPending || retryMutation.isPending;
+
+  const completingId = dialogBusy
+    ? (completeMutation.variables?.id ??
+      retryMutation.variables ??
+      pendingRevisionId)
+    : null;
 
   function markCompleted(id: string, label?: string) {
     setPendingRevisionId(id);
@@ -111,8 +134,13 @@ export function useCompleteRevision() {
     completeMutation.mutate({ id: pendingRevisionId, input });
   }
 
+  function handleRetryTomorrow() {
+    if (!pendingRevisionId) return;
+    retryMutation.mutate(pendingRevisionId);
+  }
+
   function handleCompleteDialogOpenChange(open: boolean) {
-    if (completeMutation.isPending) return;
+    if (dialogBusy) return;
     setCompleteDialogOpen(open);
     if (!open) {
       setPendingRevisionId(null);
@@ -144,9 +172,10 @@ export function useCompleteRevision() {
       <CompleteRevisionDialog
         open={completeDialogOpen}
         onOpenChange={handleCompleteDialogOpenChange}
-        loading={completeMutation.isPending}
+        loading={dialogBusy}
         revisionLabel={pendingRevisionLabel}
         onConfirm={handleCompleteConfirm}
+        onRetryTomorrow={handleRetryTomorrow}
       />
       <RevisionCycleCompleteDialog
         open={cycleDialogOpen}

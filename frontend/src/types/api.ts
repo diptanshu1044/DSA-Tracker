@@ -42,6 +42,8 @@ export interface ReviewHistoryEntry {
   confidence?: ConfidenceLevel | null;
   timeTaken?: number | null;
   nextReviewDate?: string | null;
+  /** True when next review was auto-scheduled (e.g. one-click retry). */
+  autoRescheduled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -210,6 +212,12 @@ export interface MarkRevisionCompletedInput {
 export interface MarkRevisionCompletedResult {
   revision: Revision;
   revisionCycleComplete: boolean;
+}
+
+export interface RetryFailedRevisionResult {
+  revision: Revision;
+  nextRevision: Revision;
+  revisionCycleComplete: false;
 }
 
 /** Block adding problems when pending revisions exceed this count. */

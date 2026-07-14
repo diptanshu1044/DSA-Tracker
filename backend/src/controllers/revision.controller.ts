@@ -5,6 +5,7 @@ import {
   deleteRevision,
   getRevisionById,
   listRevisions,
+  retryFailedRevision,
   scheduleAdditionalRevision,
   updateRevision,
 } from "../services/revision.service.js";
@@ -67,6 +68,18 @@ export const revisionController = {
     const input = parseOrThrow(scheduleAdditionalRevisionSchema, req.body);
     const revision = await scheduleAdditionalRevision(userId, input);
     sendSuccess(res, { revision }, "Additional revision scheduled", 201);
+  }),
+
+  retryTomorrow: asyncHandler(async (req: Request, res: Response) => {
+    const userId = requireUserId(req);
+    const revisionId = paramId(req.params.id, "revision id");
+    const { revision, nextRevision, revisionCycleComplete } =
+      await retryFailedRevision(userId, revisionId);
+    sendSuccess(
+      res,
+      { revision, nextRevision, revisionCycleComplete },
+      "Review rescheduled for tomorrow",
+    );
   }),
 
   remove: asyncHandler(async (req: Request, res: Response) => {

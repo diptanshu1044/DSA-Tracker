@@ -25,6 +25,8 @@ export interface IReviewHistory {
   confidence?: ConfidenceLevel | null;
   timeTaken?: number | null;
   nextReviewDate?: Date | null;
+  /** True when the next review was auto-scheduled (e.g. one-click retry tomorrow). */
+  autoRescheduled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +89,10 @@ const reviewHistorySchema = new Schema<IReviewHistory>(
     nextReviewDate: {
       type: Date,
       default: null,
+    },
+    autoRescheduled: {
+      type: Boolean,
+      default: false,
     },
   },
   {

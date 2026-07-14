@@ -207,13 +207,29 @@ function TimelineEntryCard({
             </span>
             {reviewResultLabel(entry.result)}
           </p>
-          <p className="text-muted-foreground">
-            Confidence: {confidenceLabel(entry.confidence)}
-          </p>
-          <p className="text-muted-foreground">
-            Time:{" "}
-            {entry.timeTaken != null ? `${entry.timeTaken} min` : "—"}
-          </p>
+          {!entry.autoRescheduled && entry.confidence ? (
+            <p className="text-muted-foreground">
+              Confidence: {confidenceLabel(entry.confidence)}
+            </p>
+          ) : null}
+          {!entry.autoRescheduled && entry.timeTaken != null ? (
+            <p className="text-muted-foreground">
+              Time: {entry.timeTaken} min
+            </p>
+          ) : null}
+          {entry.autoRescheduled && entry.nextReviewDate ? (
+            <div className="border-border/70 mt-3 space-y-1 border-t pt-3">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                Automatically Rescheduled
+              </p>
+              <p>
+                Next Review:{" "}
+                <span className="font-medium">
+                  {formatShortDate(entry.nextReviewDate)}
+                </span>
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </li>

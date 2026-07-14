@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -61,6 +61,8 @@ interface CompleteRevisionDialogProps {
   loading?: boolean;
   revisionLabel?: string;
   onConfirm: (input: MarkRevisionCompletedInput) => void;
+  /** One-click retry for Needed Solution — completes + schedules tomorrow. */
+  onRetryTomorrow: () => void;
 }
 
 export function CompleteRevisionDialog({
@@ -69,6 +71,7 @@ export function CompleteRevisionDialog({
   loading = false,
   revisionLabel,
   onConfirm,
+  onRetryTomorrow,
 }: CompleteRevisionDialogProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -86,6 +89,9 @@ export function CompleteRevisionDialog({
       timeTaken: "",
     },
   });
+
+  const selectedResult = useWatch({ control, name: "result" });
+  const isFailedRetry = selectedResult === "VIDEO";
 
   function handleOpenChange(nextOpen: boolean) {
     if (loading) return;
@@ -111,6 +117,11 @@ export function CompleteRevisionDialog({
         <form
           className="space-y-4"
           onSubmit={handleSubmit((values) => {
+            if (values.result === "VIDEO") {
+              setSubmitError(null);
+              onRetryTomorrow();
+              return;
+            }
             setSubmitError(null);
             onConfirm({
               result: values.result as ReviewResult,
@@ -169,72 +180,84 @@ export function CompleteRevisionDialog({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label id="complete-confidence-label">Confidence</Label>
-            <Controller
-              name="confidence"
-              control={control}
-              render={({ field }) => (
-                <div
-                  className="flex flex-col gap-2"
-                  role="radiogroup"
-                  aria-labelledby="complete-confidence-label"
-                >
-                  {CONFIDENCE_OPTIONS.map((option) => {
-                    const selected = field.value === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        className={cn(
-                          "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
-                          selected
-                            ? "border-foreground/30 bg-muted/40"
-                            : "border-border",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          className="accent-foreground size-4"
-                          name={field.name}
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => field.onChange(option.value)}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            />
-            {errors.confidence ? (
-              <p role="alert" className="text-destructive text-sm">
-                {errors.confidence.message}
+          {isFailedRetry ? (
+            <div className="bg-muted/40 space-y-2 rounded-lg border px-3 py-3">
+              <p className="text-sm font-medium">Review Tomorrow</p>
+              <p className="text-muted-foreground text-sm">
+                We&apos;ll mark this review complete and schedule the next one
+                for tomorrow — no date picking needed.
               </p>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label id="complete-confidence-label">Confidence</Label>
+                <Controller
+                  name="confidence"
+                  control={control}
+                  render={({ field }) => (
+                    <div
+                      className="flex flex-col gap-2"
+                      role="radiogroup"
+                      aria-labelledby="complete-confidence-label"
+                    >
+                      {CONFIDENCE_OPTIONS.map((option) => {
+                        const selected = field.value === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={cn(
+                              "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                              selected
+                                ? "border-foreground/30 bg-muted/40"
+                                : "border-border",
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              className="accent-foreground size-4"
+                              name={field.name}
+                              value={option.value}
+                              checked={selected}
+                              onChange={() => field.onChange(option.value)}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                />
+                {errors.confidence ? (
+                  <p role="alert" className="text-destructive text-sm">
+                    {errors.confidence.message}
+                  </p>
+                ) : null}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="complete-timeTaken">
-              Time taken{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional, minutes)
-              </span>
-            </Label>
-            <Input
-              id="complete-timeTaken"
-              type="number"
-              min={0}
-              max={1440}
-              placeholder="25"
-              {...register("timeTaken")}
-            />
-            {errors.timeTaken ? (
-              <p role="alert" className="text-destructive text-sm">
-                {errors.timeTaken.message}
-              </p>
-            ) : null}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="complete-timeTaken">
+                  Time taken{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (optional, minutes)
+                  </span>
+                </Label>
+                <Input
+                  id="complete-timeTaken"
+                  type="number"
+                  min={0}
+                  max={1440}
+                  placeholder="25"
+                  {...register("timeTaken")}
+                />
+                {errors.timeTaken ? (
+                  <p role="alert" className="text-destructive text-sm">
+                    {errors.timeTaken.message}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
 
           {submitError ? (
             <p role="alert" className="text-destructive text-sm">
@@ -251,9 +274,22 @@ export function CompleteRevisionDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving…" : "Mark completed"}
-            </Button>
+            {isFailedRetry ? (
+              <Button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setSubmitError(null);
+                  onRetryTomorrow();
+                }}
+              >
+                {loading ? "Saving…" : "Review Tomorrow"}
+              </Button>
+            ) : (
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving…" : "Mark completed"}
+              </Button>
+            )}
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

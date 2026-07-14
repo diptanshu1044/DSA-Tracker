@@ -35,6 +35,7 @@ export type CreateReviewHistoryInput = {
   confidence: ConfidenceLevel;
   timeTaken?: number;
   nextReviewDate?: Date | null;
+  autoRescheduled?: boolean;
 };
 
 export async function getNextPendingReviewDate(
@@ -86,6 +87,7 @@ export async function createReviewHistoryEntry(
     confidence: input.confidence,
     timeTaken: input.timeTaken ?? null,
     nextReviewDate: input.nextReviewDate ?? null,
+    autoRescheduled: input.autoRescheduled ?? false,
   });
 }
 

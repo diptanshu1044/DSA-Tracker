@@ -5,6 +5,7 @@ import type {
   MarkRevisionCompletedInput,
   MarkRevisionCompletedResult,
   PaginationMeta,
+  RetryFailedRevisionResult,
   Revision,
 } from "@/types/api";
 
@@ -71,6 +72,14 @@ export const revisionApi = {
           ? { timeTaken: input.timeTaken }
           : {}),
       },
+    });
+  },
+
+  /** One-click retry: mark failed review complete and schedule tomorrow. */
+  retryTomorrow(id: string) {
+    return apiRequest<RetryFailedRevisionResult>({
+      method: "POST",
+      url: `/revisions/${id}/retry-tomorrow`,
     });
   },
 

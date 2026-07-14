@@ -6,6 +6,7 @@ import {
   type IRevisionDocument,
 } from "../models/Revision.js";
 import { AppError } from "../utils/AppError.js";
+import { startOfUtcDay } from "../utils/dates.js";
 import { isDuplicateKeyError } from "../utils/mongo.js";
 import { parseObjectId } from "../utils/objectId.js";
 import {
@@ -29,6 +30,56 @@ export type UpdateRevisionResult = {
   /** True when this completion left the problem with zero pending revisions. */
   revisionCycleComplete: boolean;
 };
+
+export type RetryFailedRevisionResult = {
+  revision: IRevisionDocument;
+  nextRevision: IRevisionDocument;
+  /** Always false after a successful retry — a pending review was just created. */
+  revisionCycleComplete: false;
+};
+
+/**
+ * Days until the next review after a failed attempt.
+ * Kept as a single resolution point so adaptive intervals can land here later
+ * without changing the one-click retry API surface.
+ */
+export function resolveFailedReviewRetryDays(_context?: {
+  consecutiveFailures?: number;
+}): number {
+  return 1;
+}
+
+async function createPendingRevisionAtOffset(
+  userId: string,
+  problemId: IRevisionDocument["problemId"],
+  days: number,
+): Promise<IRevisionDocument> {
+  const dueDate = startOfUtcDay();
+  dueDate.setUTCDate(dueDate.getUTCDate() + days);
+
+  const revisionNumber = await nextRevisionNumber(userId, problemId);
+
+  try {
+    const revision = await Revision.create({
+      userId,
+      problemId,
+      dueDate,
+      revisionNumber,
+      completed: false,
+    });
+    await revision.populate("problemId", "title url attemptType");
+    return revision;
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new AppError(
+        "A revision with this number already exists for the problem",
+        409,
+        { revisionNumber: ["Revision number must be unique per problem"] },
+      );
+    }
+    throw error;
+  }
+}
 
 async function assertProblemOwnedByUser(
   userId: string,
@@ -255,32 +306,32 @@ export async function updateRevision(
 }
 
 /**
- * Schedules one extra revision after a completed cycle (user choice of 3 / 7 / 10 days).
- * Does not alter initial attempt-type scheduling.
+ * Completes a failed review and immediately schedules the next one (default: tomorrow).
+ * One-click recovery path — no date picker, preserves full review history.
  */
-export async function scheduleAdditionalRevision(
+export async function retryFailedRevision(
   userId: string,
-  input: ScheduleAdditionalRevisionInput,
-): Promise<IRevisionDocument> {
-  const problemObjectId = parseObjectId(input.problemId, "problemId");
-  await assertProblemOwnedByUser(userId, input.problemId);
+  revisionId: string,
+): Promise<RetryFailedRevisionResult> {
+  const revision = await Revision.findOne({
+    _id: parseObjectId(revisionId, "revision id"),
+    userId,
+  });
 
-  const dueDate = new Date();
-  dueDate.setUTCDate(dueDate.getUTCDate() + input.days);
-  dueDate.setUTCHours(0, 0, 0, 0);
+  if (!revision) {
+    throw new AppError("Revision not found", 404);
+  }
 
-  const revisionNumber = await nextRevisionNumber(userId, problemObjectId);
+  if (revision.completed) {
+    throw new AppError("Revision is already completed", 400);
+  }
+
+  const completedAt = new Date();
+  revision.completed = true;
+  revision.completedAt = completedAt;
 
   try {
-    const revision = await Revision.create({
-      userId,
-      problemId: problemObjectId,
-      dueDate,
-      revisionNumber,
-      completed: false,
-    });
-    await revision.populate("problemId", "title url attemptType");
-    return revision;
+    await revision.save();
   } catch (error) {
     if (isDuplicateKeyError(error)) {
       throw new AppError(
@@ -291,6 +342,52 @@ export async function scheduleAdditionalRevision(
     }
     throw error;
   }
+
+  const retryDays = resolveFailedReviewRetryDays();
+  const nextRevision = await createPendingRevisionAtOffset(
+    userId,
+    revision.problemId,
+    retryDays,
+  );
+
+  try {
+    await createReviewHistoryEntry({
+      userId,
+      problemId: revision.problemId,
+      revisionId: revision._id,
+      revisionNumber: revision.revisionNumber,
+      scheduledDate: revision.dueDate,
+      completedAt,
+      result: "VIDEO",
+      confidence: "LOW",
+      nextReviewDate: nextRevision.dueDate,
+      autoRescheduled: true,
+    });
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) {
+      throw error;
+    }
+  }
+
+  await revision.populate("problemId", "title url attemptType");
+  return {
+    revision,
+    nextRevision,
+    revisionCycleComplete: false,
+  };
+}
+
+/**
+ * Schedules one extra revision after a completed cycle (user choice of 3 / 7 / 10 days).
+ * Does not alter initial attempt-type scheduling.
+ */
+export async function scheduleAdditionalRevision(
+  userId: string,
+  input: ScheduleAdditionalRevisionInput,
+): Promise<IRevisionDocument> {
+  const problemObjectId = parseObjectId(input.problemId, "problemId");
+  await assertProblemOwnedByUser(userId, input.problemId);
+  return createPendingRevisionAtOffset(userId, problemObjectId, input.days);
 }
 
 export async function deleteRevision(
