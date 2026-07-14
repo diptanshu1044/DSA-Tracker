@@ -44,18 +44,16 @@ export function isMailConfigured(): boolean {
 
 /**
  * Sends email when SMTP is configured.
- * In non-production without SMTP, logs the message and returns false (caller may expose reset links in API).
- * In production without SMTP, returns false so the caller can still respond generically.
+ * Without SMTP, logs the full message to the console and returns false
+ * (caller may expose reset links in API in non-production).
  */
 export async function sendMail(options: SendMailOptions): Promise<boolean> {
   const transport = getTransporter();
 
   if (!transport) {
-    if (env.NODE_ENV !== "production") {
-      console.info(
-        `[mail] SMTP not configured. Would send to ${options.to}: ${options.subject}\n${options.text}`,
-      );
-    }
+    console.info(
+      `[mail] SMTP not configured. Would send to ${options.to}: ${options.subject}\n${options.text}`,
+    );
     return false;
   }
 
