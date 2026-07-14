@@ -6,6 +6,7 @@ import {
   type IProblemDocument,
 } from "../models/Problem.js";
 import { Revision } from "../models/Revision.js";
+import type { IReviewHistory } from "../models/ReviewHistory.js";
 import { AppError } from "../utils/AppError.js";
 import {
   humanizeSlug,
@@ -24,6 +25,12 @@ import type {
   UpdateProblemInput,
 } from "../validators/problem.validators.js";
 import { assertCanAddProblem } from "./dashboard.service.js";
+import {
+  createInitialReviewHistory,
+  deleteReviewHistoryForProblem,
+  getNextPendingReviewDate,
+  listReviewHistory,
+} from "./review-history.service.js";
 
 /**
  * Revision offsets by attempt type (days from creation, UTC midnight):
@@ -153,11 +160,24 @@ export async function createProblem(
       problem._id,
       input.attemptType,
     );
+
+    const nextReviewDate = await getNextPendingReviewDate(userId, problem._id);
+    await createInitialReviewHistory({
+      userId,
+      problemId: problem._id,
+      result: input.attemptType,
+      completedAt: problem.createdAt,
+      confidence: input.confidence,
+      timeTaken: input.timeTaken,
+      nextReviewDate,
+    });
+
     return problem;
   } catch (error) {
     if (problem) {
       await Promise.all([
         Revision.deleteMany({ problemId: problem._id, userId }),
+        deleteReviewHistoryForProblem(userId, problem._id),
         Problem.deleteOne({ _id: problem._id }),
       ]);
     }
@@ -217,6 +237,20 @@ export async function getProblemById(
   }
 
   return problem;
+}
+
+export type ProblemDetailsResult = {
+  problem: IProblemDocument;
+  reviewHistory: IReviewHistory[];
+};
+
+export async function getProblemDetails(
+  userId: string,
+  problemId: string,
+): Promise<ProblemDetailsResult> {
+  const problem = await getProblemById(userId, problemId);
+  const reviewHistory = await listReviewHistory(userId, problemId);
+  return { problem, reviewHistory };
 }
 
 export type UpdateProblemResult = {
@@ -295,6 +329,9 @@ export async function deleteProblem(
   problemId: string,
 ): Promise<void> {
   const problem = await getProblemById(userId, problemId);
-  await Revision.deleteMany({ problemId: problem._id, userId });
+  await Promise.all([
+    Revision.deleteMany({ problemId: problem._id, userId }),
+    deleteReviewHistoryForProblem(userId, problem._id),
+  ]);
   await problem.deleteOne();
 }

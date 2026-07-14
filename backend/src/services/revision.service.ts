@@ -19,6 +19,10 @@ import type {
   ScheduleAdditionalRevisionInput,
   UpdateRevisionInput,
 } from "../validators/revision.validators.js";
+import {
+  createReviewHistoryEntry,
+  getNextPendingReviewDate,
+} from "./review-history.service.js";
 
 export type UpdateRevisionResult = {
   revision: IRevisionDocument;
@@ -191,6 +195,13 @@ export async function updateRevision(
 
   const becameCompleted = !wasCompleted && revision.completed === true;
 
+  if (becameCompleted && (!input.result || !input.confidence)) {
+    throw new AppError(
+      "Result and confidence are required when completing a revision",
+      400,
+    );
+  }
+
   try {
     await revision.save();
   } catch (error) {
@@ -206,6 +217,31 @@ export async function updateRevision(
 
   let revisionCycleComplete = false;
   if (becameCompleted) {
+    const nextReviewDate = await getNextPendingReviewDate(
+      userId,
+      revision.problemId,
+    );
+
+    try {
+      await createReviewHistoryEntry({
+        userId,
+        problemId: revision.problemId,
+        revisionId: revision._id,
+        revisionNumber: revision.revisionNumber,
+        scheduledDate: revision.dueDate,
+        completedAt: revision.completedAt ?? new Date(),
+        result: input.result!,
+        confidence: input.confidence!,
+        timeTaken: input.timeTaken,
+        nextReviewDate,
+      });
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) {
+        throw error;
+      }
+      // History already recorded for this revision — keep scheduling logic intact.
+    }
+
     const pendingCount = await Revision.countDocuments({
       userId,
       problemId: revision.problemId,

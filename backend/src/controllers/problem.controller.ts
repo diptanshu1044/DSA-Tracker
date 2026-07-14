@@ -8,6 +8,7 @@ import {
   createProblem,
   deleteProblem,
   getProblemById,
+  getProblemDetails,
   listProblems,
   updateProblem,
 } from "../services/problem.service.js";
@@ -43,8 +44,11 @@ export const problemController = {
   getById: asyncHandler(async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const problemId = paramId(req.params.id, "problem id");
-    const problem = await getProblemById(userId, problemId);
-    sendSuccess(res, { problem });
+    const { problem, reviewHistory } = await getProblemDetails(
+      userId,
+      problemId,
+    );
+    sendSuccess(res, { problem, reviewHistory });
   }),
 
   update: asyncHandler(async (req: Request, res: Response) => {

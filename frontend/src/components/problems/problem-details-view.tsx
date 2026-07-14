@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ReviewHistorySection } from "@/components/problems/review-history-section";
 import { ApiError } from "@/lib/api";
 import { formatShortDate, isOverdue } from "@/lib/dates";
 import { attemptTypeLabel } from "@/lib/revision";
@@ -34,7 +35,12 @@ import {
 } from "@/lib/validations/problem";
 import { problemApi } from "@/services/problem.service";
 import { revisionApi } from "@/services/revision.service";
-import type { AttemptType, Problem, Revision } from "@/types/api";
+import type {
+  AttemptType,
+  Problem,
+  ReviewHistoryEntry,
+  Revision,
+} from "@/types/api";
 
 function ProblemDetailsSkeleton() {
   return (
@@ -304,11 +310,14 @@ export function ProblemDetailsView() {
     queryKey: ["problems", problemId],
     queryFn: async () => {
       const result = await problemApi.getById(problemId);
-      return result.problem;
+      return {
+        problem: result.problem,
+        reviewHistory: result.reviewHistory ?? [],
+      };
     },
     enabled: Boolean(problemId),
     refetchInterval: (query) => {
-      const problem = query.state.data;
+      const problem = query.state.data?.problem;
       return problem?.metadataFetched === false ? 2000 : false;
     },
   });
@@ -393,14 +402,22 @@ export function ProblemDetailsView() {
     );
   }
 
-  const problem = problemQuery.data;
+  const problem = problemQuery.data.problem;
+  const reviewHistory: ReviewHistoryEntry[] =
+    problemQuery.data.reviewHistory ?? [];
   const revisions = [...(revisionsQuery.data ?? [])].sort(
     (a, b) => a.revisionNumber - b.revisionNumber,
   );
   const upcomingRevisions = revisions.filter((revision) => !revision.completed);
-  const completedRevisions = revisions.filter((revision) => revision.completed);
   const status = problemStatus(revisions);
   const topics = problem.topics ?? [];
+  const nextScheduledReview =
+    upcomingRevisions
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+      )[0]?.dueDate ?? null;
 
   return (
     <div className="space-y-6">
@@ -627,38 +644,18 @@ export function ProblemDetailsView() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Completed revisions</CardTitle>
-          <CardDescription>
-            Reviews you have already finished for this problem.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {revisionsQuery.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : revisionsQuery.isError ? (
-            <p className="text-muted-foreground text-sm">
-              Could not load completed revisions.
-            </p>
-          ) : (
-            <RevisionList
-              revisions={completedRevisions}
-              emptyMessage="No completed revisions yet."
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ReviewHistorySection
+        history={reviewHistory}
+        statusLabel={status.label}
+        nextScheduledReview={nextScheduledReview}
+        isLoading={problemQuery.isFetching && reviewHistory.length === 0}
+      />
 
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete this problem?"
-        description="This removes the problem and all of its revisions. This cannot be undone."
+        description="This removes the problem, its revisions, and review history. This cannot be undone."
         confirmLabel="Delete problem"
         variant="destructive"
         loading={deleteMutation.isPending}

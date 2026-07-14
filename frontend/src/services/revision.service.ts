@@ -2,6 +2,7 @@ import { apiRequest } from "@/lib/api";
 import { dueBeforeEndOfTodayUtc } from "@/lib/dates";
 import type {
   AdditionalRevisionDays,
+  MarkRevisionCompletedInput,
   MarkRevisionCompletedResult,
   PaginationMeta,
   Revision,
@@ -58,11 +59,18 @@ export const revisionApi = {
     return revisionApi.list({ problemId, limit });
   },
 
-  markCompleted(id: string) {
+  markCompleted(id: string, input: MarkRevisionCompletedInput) {
     return apiRequest<MarkRevisionCompletedResult>({
       method: "PATCH",
       url: `/revisions/${id}`,
-      data: { completed: true },
+      data: {
+        completed: true,
+        result: input.result,
+        confidence: input.confidence,
+        ...(input.timeTaken !== undefined
+          ? { timeTaken: input.timeTaken }
+          : {}),
+      },
     });
   },
 

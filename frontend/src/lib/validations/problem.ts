@@ -6,6 +6,12 @@ export const ATTEMPT_TYPE_OPTIONS = [
   { value: "VIDEO", label: "Watched Solution" },
 ] as const;
 
+export const CONFIDENCE_OPTIONS = [
+  { value: "LOW", label: "Low" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HIGH", label: "High" },
+] as const;
+
 function optionalTimeTaken(value: unknown): number | undefined {
   if (value === "" || value === null || value === undefined) {
     return undefined;
@@ -44,6 +50,7 @@ export const createProblemSchema = z.object({
         .max(24 * 60, "Time taken cannot exceed 24 hours")
         .optional(),
     ),
+  confidence: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
 });
 
 export type CreateProblemFormValues = z.input<typeof createProblemSchema>;

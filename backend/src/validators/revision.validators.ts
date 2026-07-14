@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ATTEMPT_TYPES } from "../models/Problem.js";
+import { CONFIDENCE_LEVELS } from "../models/ReviewHistory.js";
 import { paginationQuerySchema } from "../utils/pagination.js";
 
 const objectIdString = z
@@ -20,15 +22,40 @@ export const updateRevisionSchema = z
     revisionNumber: z.coerce.number().int().min(1).max(100).optional(),
     completed: z.boolean().optional(),
     completedAt: z.coerce.date().nullable().optional(),
+    /** Required when marking a revision completed (appends immutable history). */
+    result: z.enum(ATTEMPT_TYPES).optional(),
+    confidence: z.enum(CONFIDENCE_LEVELS).optional(),
+    timeTaken: z.coerce.number().min(0).max(24 * 60).optional(),
   })
   .refine(
     (data) =>
       data.dueDate !== undefined ||
       data.revisionNumber !== undefined ||
       data.completed !== undefined ||
-      data.completedAt !== undefined,
+      data.completedAt !== undefined ||
+      data.result !== undefined ||
+      data.confidence !== undefined ||
+      data.timeTaken !== undefined,
     { message: "At least one field is required" },
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (data.completed === true) {
+      if (!data.result) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["result"],
+          message: "Result is required when completing a revision",
+        });
+      }
+      if (!data.confidence) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["confidence"],
+          message: "Confidence is required when completing a revision",
+        });
+      }
+    }
+  });
 
 export const listRevisionsQuerySchema = paginationQuerySchema.extend({
   problemId: objectIdString.optional(),

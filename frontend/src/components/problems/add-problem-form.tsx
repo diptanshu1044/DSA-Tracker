@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import {
   ATTEMPT_TYPE_OPTIONS,
+  CONFIDENCE_OPTIONS,
   createProblemSchema,
   type CreateProblemFormValues,
   type CreateProblemPayload,
@@ -55,6 +56,7 @@ export function AddProblemForm() {
       url: "",
       attemptType: undefined,
       timeTaken: "",
+      confidence: undefined,
     },
   });
 
@@ -76,9 +78,12 @@ export function AddProblemForm() {
           if (
             field === "url" ||
             field === "attemptType" ||
-            field === "timeTaken"
+            field === "timeTaken" ||
+            field === "confidence"
           ) {
-            setError(field, { message: messages[0] ?? error.message });
+            setError(field as "url" | "attemptType" | "timeTaken" | "confidence", {
+              message: messages[0] ?? error.message,
+            });
           }
         }
       }
@@ -123,6 +128,9 @@ export function AddProblemForm() {
               attemptType: values.attemptType,
               ...(values.timeTaken !== undefined
                 ? { timeTaken: values.timeTaken }
+                : {}),
+              ...(values.confidence !== undefined
+                ? { confidence: values.confidence }
                 : {}),
             }),
           )}
@@ -220,6 +228,57 @@ export function AddProblemForm() {
                 className="text-destructive text-sm"
               >
                 {errors.timeTaken.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <Label id="confidence-label">
+              Confidence{" "}
+              <span className="text-muted-foreground font-normal">
+                (optional)
+              </span>
+            </Label>
+            <Controller
+              name="confidence"
+              control={control}
+              render={({ field }) => (
+                <div
+                  className="flex flex-col gap-2"
+                  role="radiogroup"
+                  aria-labelledby="confidence-label"
+                >
+                  {CONFIDENCE_OPTIONS.map((option) => {
+                    const selected = field.value === option.value;
+                    return (
+                      <label
+                        key={option.value}
+                        className={cn(
+                          "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                          selected
+                            ? "border-foreground/30 bg-muted/40"
+                            : "border-border",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          className="accent-foreground size-4"
+                          name={field.name}
+                          value={option.value}
+                          checked={selected}
+                          onChange={() => field.onChange(option.value)}
+                          onBlur={field.onBlur}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            />
+            {errors.confidence ? (
+              <p role="alert" className="text-destructive text-sm">
+                {errors.confidence.message}
               </p>
             ) : null}
           </div>

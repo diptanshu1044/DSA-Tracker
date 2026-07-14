@@ -4,6 +4,10 @@ export type JwtTokenType = "access" | "refresh";
 
 export type AttemptType = "SELF" | "HINT" | "VIDEO";
 
+export type ConfidenceLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export type ReviewHistoryType = "INITIAL" | "REVIEW";
+
 export interface JwtPayload {
   userId: string;
   email: string;

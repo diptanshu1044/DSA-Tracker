@@ -4,6 +4,13 @@ export type AttemptType = "SELF" | "HINT" | "VIDEO";
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
+export type ConfidenceLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export type ReviewHistoryType = "INITIAL" | "REVIEW";
+
+/** Outcome of an attempt/review — same values as AttemptType. */
+export type ReviewResult = AttemptType;
+
 export interface Problem {
   _id: string;
   userId: string;
@@ -18,6 +25,23 @@ export interface Problem {
   metadataError?: string | null;
   attemptType: AttemptType;
   timeTaken?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewHistoryEntry {
+  _id: string;
+  userId: string;
+  problemId: string;
+  type: ReviewHistoryType;
+  revisionNumber?: number | null;
+  revisionId?: string | null;
+  scheduledDate?: string | null;
+  completedAt: string;
+  result: ReviewResult;
+  confidence?: ConfidenceLevel | null;
+  timeTaken?: number | null;
+  nextReviewDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +142,12 @@ export interface Revision {
 export const ADDITIONAL_REVISION_DAYS = [3, 7, 10] as const;
 export type AdditionalRevisionDays =
   (typeof ADDITIONAL_REVISION_DAYS)[number];
+
+export interface MarkRevisionCompletedInput {
+  result: ReviewResult;
+  confidence: ConfidenceLevel;
+  timeTaken?: number;
+}
 
 export interface MarkRevisionCompletedResult {
   revision: Revision;

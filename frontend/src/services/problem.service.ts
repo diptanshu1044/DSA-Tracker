@@ -1,14 +1,17 @@
 import { apiRequest } from "@/lib/api";
 import type {
   AttemptType,
+  ConfidenceLevel,
   PaginationMeta,
   Problem,
+  ReviewHistoryEntry,
 } from "@/types/api";
 
 export interface CreateProblemInput {
   url: string;
   attemptType: AttemptType;
   timeTaken?: number;
+  confidence?: ConfidenceLevel;
 }
 
 export interface UpdateProblemInput {
@@ -67,7 +70,10 @@ export const problemApi = {
   },
 
   getById(id: string) {
-    return apiRequest<{ problem: Problem }>({
+    return apiRequest<{
+      problem: Problem;
+      reviewHistory: ReviewHistoryEntry[];
+    }>({
       method: "GET",
       url: `/problems/${id}`,
     });

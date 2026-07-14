@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ATTEMPT_TYPES } from "../models/Problem.js";
+import { CONFIDENCE_LEVELS } from "../models/ReviewHistory.js";
 import { paginationQuerySchema } from "../utils/pagination.js";
 import { parseLeetCodeUrl } from "../utils/leetcodeUrl.js";
 
@@ -27,6 +28,7 @@ export const createProblemSchema = z.object({
   url: leetCodeUrlSchema,
   attemptType: z.enum(ATTEMPT_TYPES),
   timeTaken: z.coerce.number().min(0).max(24 * 60).optional(),
+  confidence: z.enum(CONFIDENCE_LEVELS).optional(),
 });
 
 export const updateProblemSchema = z

@@ -109,7 +109,12 @@ export function RevisionQueue({ items }: RevisionQueueProps) {
                       size="sm"
                       variant="outline"
                       disabled={isCompleting || item.completed}
-                      onClick={() => markCompleted(item._id)}
+                      onClick={() =>
+                        markCompleted(
+                          item._id,
+                          `Revision #${item.revisionNumber}`,
+                        )
+                      }
                     >
                       {isCompleting ? (
                         <Loader2 className="size-4 animate-spin" />

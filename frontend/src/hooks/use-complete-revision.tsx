@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CompleteRevisionDialog } from "@/components/revisions/complete-revision-dialog";
 import { RevisionCycleCompleteDialog } from "@/components/revisions/revision-cycle-complete-dialog";
 import { ApiError } from "@/lib/api";
 import { getRevisionProblemId } from "@/lib/revision";
 import { revisionApi } from "@/services/revision.service";
-import type { AdditionalRevisionDays } from "@/types/api";
+import type {
+  AdditionalRevisionDays,
+  MarkRevisionCompletedInput,
+} from "@/types/api";
 
 async function invalidateRevisionQueries(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -15,23 +19,40 @@ async function invalidateRevisionQueries(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
     queryClient.invalidateQueries({ queryKey: ["revisions"] }),
+    queryClient.invalidateQueries({ queryKey: ["problems"] }),
     queryClient.invalidateQueries({ queryKey: ["analytics"] }),
   ]);
 }
 
 /**
- * Marks a revision complete and opens the post-cycle dialog when no pending
- * revisions remain for that problem.
+ * Opens a performance dialog, marks a revision complete, and shows the
+ * post-cycle dialog when no pending revisions remain for that problem.
  */
 export function useCompleteRevision() {
   const queryClient = useQueryClient();
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [pendingRevisionId, setPendingRevisionId] = useState<string | null>(
+    null,
+  );
+  const [pendingRevisionLabel, setPendingRevisionLabel] = useState<
+    string | undefined
+  >(undefined);
   const [cycleDialogOpen, setCycleDialogOpen] = useState(false);
   const [cycleProblemId, setCycleProblemId] = useState<string | null>(null);
 
   const completeMutation = useMutation({
-    mutationFn: (id: string) => revisionApi.markCompleted(id),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: MarkRevisionCompletedInput;
+    }) => revisionApi.markCompleted(id, input),
     onSuccess: async (data) => {
       toast.success("Revision marked complete");
+      setCompleteDialogOpen(false);
+      setPendingRevisionId(null);
+      setPendingRevisionLabel(undefined);
       await invalidateRevisionQueries(queryClient);
 
       if (data.revisionCycleComplete) {
@@ -75,9 +96,29 @@ export function useCompleteRevision() {
   });
 
   const completingId =
-    completeMutation.isPending && typeof completeMutation.variables === "string"
-      ? completeMutation.variables
+    completeMutation.isPending && completeMutation.variables
+      ? completeMutation.variables.id
       : null;
+
+  function markCompleted(id: string, label?: string) {
+    setPendingRevisionId(id);
+    setPendingRevisionLabel(label);
+    setCompleteDialogOpen(true);
+  }
+
+  function handleCompleteConfirm(input: MarkRevisionCompletedInput) {
+    if (!pendingRevisionId) return;
+    completeMutation.mutate({ id: pendingRevisionId, input });
+  }
+
+  function handleCompleteDialogOpenChange(open: boolean) {
+    if (completeMutation.isPending) return;
+    setCompleteDialogOpen(open);
+    if (!open) {
+      setPendingRevisionId(null);
+      setPendingRevisionLabel(undefined);
+    }
+  }
 
   function handleSchedule(days: AdditionalRevisionDays) {
     if (!cycleProblemId) return;
@@ -90,7 +131,7 @@ export function useCompleteRevision() {
     toast.success("Great! This problem has been marked as completed.");
   }
 
-  function handleDialogOpenChange(open: boolean) {
+  function handleCycleDialogOpenChange(open: boolean) {
     if (scheduleMutation.isPending) return;
     setCycleDialogOpen(open);
     if (!open) {
@@ -98,19 +139,28 @@ export function useCompleteRevision() {
     }
   }
 
-  const cycleDialog = (
-    <RevisionCycleCompleteDialog
-      open={cycleDialogOpen}
-      onOpenChange={handleDialogOpenChange}
-      loading={scheduleMutation.isPending}
-      onSchedule={handleSchedule}
-      onConfident={handleConfident}
-    />
+  const dialogs = (
+    <>
+      <CompleteRevisionDialog
+        open={completeDialogOpen}
+        onOpenChange={handleCompleteDialogOpenChange}
+        loading={completeMutation.isPending}
+        revisionLabel={pendingRevisionLabel}
+        onConfirm={handleCompleteConfirm}
+      />
+      <RevisionCycleCompleteDialog
+        open={cycleDialogOpen}
+        onOpenChange={handleCycleDialogOpenChange}
+        loading={scheduleMutation.isPending}
+        onSchedule={handleSchedule}
+        onConfident={handleConfident}
+      />
+    </>
   );
 
   return {
-    markCompleted: (id: string) => completeMutation.mutate(id),
+    markCompleted,
     completingId,
-    cycleDialog,
+    cycleDialog: dialogs,
   };
 }

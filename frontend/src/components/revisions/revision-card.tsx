@@ -19,7 +19,7 @@ interface RevisionCardProps {
   revision: Revision;
   overdue: boolean;
   isCompleting?: boolean;
-  onMarkCompleted: (id: string) => void;
+  onMarkCompleted: (id: string, label?: string) => void;
 }
 
 export function RevisionCard({
@@ -77,7 +77,12 @@ export function RevisionCard({
           type="button"
           size="sm"
           disabled={isCompleting || revision.completed}
-          onClick={() => onMarkCompleted(revision._id)}
+                      onClick={() =>
+                        onMarkCompleted(
+                          revision._id,
+                          `Revision #${revision.revisionNumber}`,
+                        )
+                      }
         >
           {isCompleting ? (
             <Loader2 className="size-4 animate-spin" />
