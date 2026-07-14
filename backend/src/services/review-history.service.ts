@@ -12,6 +12,7 @@ import {
   type IReviewHistoryDocument,
   type ReviewResult,
 } from "../models/ReviewHistory.js";
+import { invalidateActivityCache } from "./activity.service.js";
 import { parseObjectId } from "../utils/objectId.js";
 
 export type CreateInitialHistoryInput = {
@@ -57,7 +58,7 @@ export async function getNextPendingReviewDate(
 export async function createInitialReviewHistory(
   input: CreateInitialHistoryInput,
 ): Promise<IReviewHistoryDocument> {
-  return ReviewHistory.create({
+  const entry = await ReviewHistory.create({
     userId: input.userId,
     problemId: input.problemId,
     type: "INITIAL",
@@ -70,12 +71,14 @@ export async function createInitialReviewHistory(
     timeTaken: input.timeTaken ?? null,
     nextReviewDate: input.nextReviewDate ?? null,
   });
+  invalidateActivityCache(String(input.userId));
+  return entry;
 }
 
 export async function createReviewHistoryEntry(
   input: CreateReviewHistoryInput,
 ): Promise<IReviewHistoryDocument> {
-  return ReviewHistory.create({
+  const entry = await ReviewHistory.create({
     userId: input.userId,
     problemId: input.problemId,
     type: "REVIEW",
@@ -89,6 +92,8 @@ export async function createReviewHistoryEntry(
     nextReviewDate: input.nextReviewDate ?? null,
     autoRescheduled: input.autoRescheduled ?? false,
   });
+  invalidateActivityCache(String(input.userId));
+  return entry;
 }
 
 /**

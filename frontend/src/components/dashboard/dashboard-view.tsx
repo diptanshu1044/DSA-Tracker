@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Plus } from "lucide-react";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { ActivityHeatmapSection } from "@/components/dashboard/activity-heatmap";
 import { TodaysQueueView } from "@/components/dashboard/todays-queue";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ function DashboardSkeleton() {
           <Skeleton key={index} className="h-28 w-full rounded-xl" />
         ))}
       </div>
+      <Skeleton className="h-72 w-full rounded-xl" />
       <Skeleton className="h-64 w-full rounded-xl" />
     </div>
   );
@@ -102,6 +104,8 @@ export function DashboardView() {
       ) : null}
 
       <StatsCards stats={data.stats} />
+
+      <ActivityHeatmapSection canAddProblem={!backlogBlocked} />
 
       <TodaysQueueView
         queue={

@@ -170,6 +170,7 @@ function EditProblemForm({
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["revisions"] }),
         queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+        queryClient.invalidateQueries({ queryKey: ["activity"] }),
       ]);
       toast.success("Problem updated");
       onSaved();
@@ -339,6 +340,7 @@ export function ProblemDetailsView() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["revisions"] }),
         queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+        queryClient.invalidateQueries({ queryKey: ["activity"] }),
       ]);
       toast.success("Problem deleted");
       router.replace("/problems");

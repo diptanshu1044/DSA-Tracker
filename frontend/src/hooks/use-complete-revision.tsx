@@ -21,6 +21,7 @@ async function invalidateRevisionQueries(
     queryClient.invalidateQueries({ queryKey: ["revisions"] }),
     queryClient.invalidateQueries({ queryKey: ["problems"] }),
     queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+    queryClient.invalidateQueries({ queryKey: ["activity"] }),
   ]);
 }
 

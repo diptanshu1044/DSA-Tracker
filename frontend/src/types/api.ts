@@ -179,6 +179,45 @@ export interface Dashboard {
   todaysQueue: TodaysQueue;
 }
 
+export interface ActivityDay {
+  date: string;
+  problemsAdded: number;
+  reviewsCompleted: number;
+  totalActivity: number;
+  activities: Record<string, number>;
+}
+
+export interface ActivityStats {
+  currentStreak: number;
+  longestStreak: number;
+  activeDays: number;
+  activeDaysPercent: number;
+  problemsAdded: number;
+  reviewsCompleted: number;
+  thisYearActivity: number;
+  totalActivity: number;
+}
+
+export interface ActivityHeatmap {
+  rangeStart: string;
+  rangeEnd: string;
+  days: ActivityDay[];
+  stats: ActivityStats;
+  hasActivity: boolean;
+}
+
+export interface ActivityDayProblem {
+  problemId: string;
+  title: string;
+}
+
+export interface ActivityDayDetail {
+  date: string;
+  problemsAdded: ActivityDayProblem[];
+  reviewsCompleted: ActivityDayProblem[];
+  totalActivity: number;
+}
+
 export interface RevisionProblemSummary {
   _id: string;
   title: string;

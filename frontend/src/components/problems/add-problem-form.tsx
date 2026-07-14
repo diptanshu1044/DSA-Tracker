@@ -68,6 +68,7 @@ export function AddProblemForm() {
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["revisions"] }),
         queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+        queryClient.invalidateQueries({ queryKey: ["activity"] }),
       ]);
       toast.success("Problem added. Fetching problem details...");
       router.push("/problems");

@@ -108,6 +108,8 @@ const reviewHistorySchema = new Schema<IReviewHistory>(
 
 reviewHistorySchema.index({ problemId: 1, completedAt: 1 });
 reviewHistorySchema.index({ userId: 1, problemId: 1, completedAt: 1 });
+/** Speeds up year-long heatmap aggregations by completedAt. */
+reviewHistorySchema.index({ userId: 1, completedAt: -1 });
 reviewHistorySchema.index(
   { revisionId: 1 },
   {
