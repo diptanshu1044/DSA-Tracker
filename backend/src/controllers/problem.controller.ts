@@ -1,4 +1,8 @@
 import type { Request, Response } from "express";
+import {
+  enqueueFetchProblemMetadata,
+  retryFetchProblemMetadata,
+} from "../jobs/fetchProblemMetadata.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
   createProblem,
@@ -22,6 +26,7 @@ export const problemController = {
     const userId = requireUserId(req);
     const input = parseOrThrow(createProblemSchema, req.body);
     const problem = await createProblem(userId, input);
+    enqueueFetchProblemMetadata(String(problem._id));
     sendSuccess(res, { problem }, "Problem created", 201);
   }),
 
@@ -46,8 +51,23 @@ export const problemController = {
     const userId = requireUserId(req);
     const problemId = paramId(req.params.id, "problem id");
     const input = parseOrThrow(updateProblemSchema, req.body);
-    const problem = await updateProblem(userId, problemId, input);
+    const { problem, shouldRefetchMetadata } = await updateProblem(
+      userId,
+      problemId,
+      input,
+    );
+    if (shouldRefetchMetadata) {
+      enqueueFetchProblemMetadata(String(problem._id));
+    }
     sendSuccess(res, { problem }, "Problem updated");
+  }),
+
+  retryMetadata: asyncHandler(async (req: Request, res: Response) => {
+    const userId = requireUserId(req);
+    const problemId = paramId(req.params.id, "problem id");
+    await retryFetchProblemMetadata(userId, problemId);
+    const problem = await getProblemById(userId, problemId);
+    sendSuccess(res, { problem }, "Metadata fetch queued");
   }),
 
   remove: asyncHandler(async (req: Request, res: Response) => {

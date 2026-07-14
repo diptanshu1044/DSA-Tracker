@@ -2,11 +2,20 @@ export type AuthProvider = "local" | "google";
 
 export type AttemptType = "SELF" | "HINT" | "VIDEO";
 
+export type Difficulty = "Easy" | "Medium" | "Hard";
+
 export interface Problem {
   _id: string;
   userId: string;
   title: string;
   url: string;
+  slug?: string;
+  difficulty?: Difficulty;
+  topics?: string[];
+  problemId?: string;
+  metadataFetched?: boolean;
+  metadataFetchedAt?: string | null;
+  metadataError?: string | null;
   attemptType: AttemptType;
   timeTaken?: number;
   createdAt: string;

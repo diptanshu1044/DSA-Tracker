@@ -6,7 +6,6 @@ import type {
 } from "@/types/api";
 
 export interface CreateProblemInput {
-  title: string;
   url: string;
   attemptType: AttemptType;
   timeTaken?: number;
@@ -71,6 +70,13 @@ export const problemApi = {
     return apiRequest<{ problem: Problem }>({
       method: "GET",
       url: `/problems/${id}`,
+    });
+  },
+
+  retryMetadata(id: string) {
+    return apiRequest<{ problem: Problem }>({
+      method: "POST",
+      url: `/problems/${id}/retry-metadata`,
     });
   },
 

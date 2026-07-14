@@ -3,10 +3,20 @@ import { Schema, model, type HydratedDocument, type Model, type Types } from "mo
 export const ATTEMPT_TYPES = ["SELF", "HINT", "VIDEO"] as const;
 export type AttemptType = (typeof ATTEMPT_TYPES)[number];
 
+export const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+
 export interface IProblem {
   userId: Types.ObjectId;
   title: string;
   url: string;
+  slug?: string;
+  difficulty?: Difficulty;
+  topics: string[];
+  problemId?: string;
+  metadataFetched: boolean;
+  metadataFetchedAt?: Date | null;
+  metadataError?: string | null;
   attemptType: AttemptType;
   timeTaken?: number;
   createdAt: Date;
@@ -34,6 +44,37 @@ const problemSchema = new Schema<IProblem>(
       required: true,
       trim: true,
       maxlength: 2048,
+    },
+    slug: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    difficulty: {
+      type: String,
+      enum: DIFFICULTIES,
+    },
+    topics: {
+      type: [String],
+      default: [],
+    },
+    problemId: {
+      type: String,
+      trim: true,
+      maxlength: 50,
+    },
+    metadataFetched: {
+      type: Boolean,
+      default: false,
+    },
+    metadataFetchedAt: {
+      type: Date,
+      default: null,
+    },
+    metadataError: {
+      type: String,
+      default: null,
+      maxlength: 1000,
     },
     attemptType: {
       type: String,

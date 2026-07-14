@@ -88,6 +88,13 @@ export function ProblemsListView() {
       });
       return result;
     },
+    refetchInterval: (query) => {
+      const problems = query.state.data?.problems ?? [];
+      const pending = problems.some(
+        (problem) => problem.metadataFetched === false,
+      );
+      return pending ? 2000 : false;
+    },
   });
 
   if (isLoading) {
@@ -217,10 +224,24 @@ export function ProblemsListView() {
                       >
                         {problem.title}
                       </Link>
+                      {problem.metadataFetched === false ? (
+                        <Badge variant="secondary">Fetching details...</Badge>
+                      ) : null}
+                      {problem.difficulty ? (
+                        <Badge variant="outline">{problem.difficulty}</Badge>
+                      ) : null}
                       <Badge variant="outline">
                         {attemptTypeLabel(problem.attemptType)}
                       </Badge>
                     </div>
+                    {problem.metadataFetched && problem.topics?.length ? (
+                      <p className="text-muted-foreground text-xs">
+                        {problem.topics.slice(0, 4).join(" · ")}
+                        {problem.topics.length > 4
+                          ? ` · +${problem.topics.length - 4}`
+                          : null}
+                      </p>
+                    ) : null}
                     <p className="text-muted-foreground text-xs">
                       Added {formatShortDate(problem.createdAt)}
                       {problem.timeTaken != null

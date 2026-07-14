@@ -11,6 +11,7 @@ router.get("/", problemController.list);
 router.get("/:id", problemController.getById);
 router.patch("/:id", problemController.update);
 router.put("/:id", problemController.update);
+router.post("/:id/retry-metadata", problemController.retryMetadata);
 router.delete("/:id", problemController.remove);
 
 export default router;

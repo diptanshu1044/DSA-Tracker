@@ -7,6 +7,10 @@ import {
 } from "../models/Problem.js";
 import { Revision } from "../models/Revision.js";
 import { AppError } from "../utils/AppError.js";
+import {
+  humanizeSlug,
+  parseLeetCodeUrl,
+} from "../utils/leetcodeUrl.js";
 import { isDuplicateKeyError } from "../utils/mongo.js";
 import { parseObjectId } from "../utils/objectId.js";
 import {
@@ -107,6 +111,17 @@ async function reschedulePendingRevisions(
   await scheduleRevisionsForAttempt(userId, problemId, attemptType);
 }
 
+function resetMetadataFields(problem: IProblemDocument, slug: string): void {
+  problem.slug = slug;
+  problem.title = humanizeSlug(slug);
+  problem.topics = [];
+  problem.metadataFetched = false;
+  problem.metadataFetchedAt = null;
+  problem.metadataError = null;
+  problem.set("difficulty", undefined);
+  problem.set("problemId", undefined);
+}
+
 export async function createProblem(
   userId: string,
   input: CreateProblemInput,
@@ -114,13 +129,21 @@ export async function createProblem(
   await assertCanAddProblem(userId);
   await assertUniqueProblemUrl(userId, input.url);
 
+  const { slug } = parseLeetCodeUrl(input.url);
+  const provisionalTitle = humanizeSlug(slug);
+
   let problem: IProblemDocument | null = null;
 
   try {
     problem = await Problem.create({
       userId,
-      title: input.title,
+      title: provisionalTitle,
       url: input.url,
+      slug,
+      topics: [],
+      metadataFetched: false,
+      metadataFetchedAt: null,
+      metadataError: null,
       attemptType: input.attemptType,
       ...(input.timeTaken !== undefined ? { timeTaken: input.timeTaken } : {}),
     });
@@ -161,7 +184,7 @@ export async function listProblems(
   if (query.search) {
     const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const prefix = new RegExp(`^${escaped}`, "i");
-    filter.$or = [{ title: prefix }, { url: prefix }];
+    filter.$or = [{ title: prefix }, { url: prefix }, { slug: prefix }];
   }
 
   const skip = paginationSkip(query.page, query.limit);
@@ -196,17 +219,27 @@ export async function getProblemById(
   return problem;
 }
 
+export type UpdateProblemResult = {
+  problem: IProblemDocument;
+  /** True when URL changed and metadata should be re-fetched. */
+  shouldRefetchMetadata: boolean;
+};
+
 export async function updateProblem(
   userId: string,
   problemId: string,
   input: UpdateProblemInput,
-): Promise<IProblemDocument> {
+): Promise<UpdateProblemResult> {
   const problem = await getProblemById(userId, problemId);
   const previousAttemptType = problem.attemptType;
+  let shouldRefetchMetadata = false;
 
   if (input.url !== undefined && input.url !== problem.url) {
     await assertUniqueProblemUrl(userId, input.url, problemId);
+    const { slug } = parseLeetCodeUrl(input.url);
     problem.url = input.url;
+    resetMetadataFields(problem, slug);
+    shouldRefetchMetadata = true;
   }
 
   if (input.title !== undefined) {
@@ -226,6 +259,15 @@ export async function updateProblem(
   try {
     await problem.save();
 
+    if (shouldRefetchMetadata) {
+      await Problem.updateOne(
+        { _id: problem._id },
+        { $unset: { difficulty: "", problemId: "" } },
+      );
+      problem.difficulty = undefined;
+      problem.problemId = undefined;
+    }
+
     if (
       input.attemptType !== undefined &&
       input.attemptType !== previousAttemptType
@@ -237,7 +279,7 @@ export async function updateProblem(
       );
     }
 
-    return problem;
+    return { problem, shouldRefetchMetadata };
   } catch (error) {
     if (isDuplicateKeyError(error)) {
       throw new AppError("A problem with this URL already exists", 409, {

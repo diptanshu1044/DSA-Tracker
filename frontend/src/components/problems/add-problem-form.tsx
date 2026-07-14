@@ -52,7 +52,6 @@ export function AddProblemForm() {
   } = useForm<CreateProblemFormValues, unknown, CreateProblemPayload>({
     resolver: zodResolver(createProblemSchema),
     defaultValues: {
-      title: "",
       url: "",
       attemptType: undefined,
       timeTaken: "",
@@ -68,14 +67,13 @@ export function AddProblemForm() {
         queryClient.invalidateQueries({ queryKey: ["revisions"] }),
         queryClient.invalidateQueries({ queryKey: ["analytics"] }),
       ]);
-      toast.success("Problem added");
-      router.push("/dashboard");
+      toast.success("Problem added. Fetching problem details...");
+      router.push("/problems");
     },
     onError: (error: Error) => {
       if (error instanceof ApiError && error.errors) {
         for (const [field, messages] of Object.entries(error.errors)) {
           if (
-            field === "title" ||
             field === "url" ||
             field === "attemptType" ||
             field === "timeTaken"
@@ -97,8 +95,9 @@ export function AddProblemForm() {
       <CardHeader className="space-y-1 px-0 pt-0">
         <CardTitle className="text-2xl">Add Problem</CardTitle>
         <CardDescription>
-          Log a problem you practiced. Hints and solutions schedule revisions
-          for tomorrow and in 7 days; solving yourself skips revisions.
+          Paste a LeetCode link. Title, difficulty, and topics are fetched
+          automatically. Hints and solutions schedule revisions for tomorrow and
+          in 7 days; solving yourself skips revisions.
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
@@ -120,7 +119,6 @@ export function AddProblemForm() {
           className="space-y-5"
           onSubmit={handleSubmit((values) =>
             mutation.mutate({
-              title: values.title,
               url: values.url,
               attemptType: values.attemptType,
               ...(values.timeTaken !== undefined
@@ -131,28 +129,11 @@ export function AddProblemForm() {
           noValidate
         >
           <div className="space-y-2">
-            <Label htmlFor="title">Problem Name</Label>
-            <Input
-              id="title"
-              placeholder="Two Sum"
-              autoComplete="off"
-              aria-invalid={Boolean(errors.title)}
-              aria-describedby={errors.title ? "title-error" : undefined}
-              {...register("title")}
-            />
-            {errors.title ? (
-              <p id="title-error" role="alert" className="text-destructive text-sm">
-                {errors.title.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="url">Problem Link</Label>
+            <Label htmlFor="url">LeetCode Problem URL</Label>
             <Input
               id="url"
               type="url"
-              placeholder="https://leetcode.com/problems/two-sum"
+              placeholder="https://leetcode.com/problems/two-sum/"
               autoComplete="off"
               aria-invalid={Boolean(errors.url)}
               aria-describedby={errors.url ? "url-error" : undefined}
@@ -166,7 +147,7 @@ export function AddProblemForm() {
           </div>
 
           <div className="space-y-3">
-            <Label id="attempt-label">Attempt</Label>
+            <Label id="attempt-label">Attempt Type</Label>
             <Controller
               name="attemptType"
               control={control}
@@ -259,7 +240,7 @@ export function AddProblemForm() {
             <Button
               type="button"
               variant="outline"
-              render={<Link href="/dashboard" />}
+              render={<Link href="/problems" />}
             >
               Cancel
             </Button>

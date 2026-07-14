@@ -7,7 +7,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +28,9 @@ import { attemptTypeLabel } from "@/lib/revision";
 import { cn } from "@/lib/utils";
 import {
   ATTEMPT_TYPE_OPTIONS,
-  createProblemSchema,
-  type CreateProblemFormValues,
-  type CreateProblemPayload,
+  updateProblemSchema,
+  type UpdateProblemFormValues,
+  type UpdateProblemPayload,
 } from "@/lib/validations/problem";
 import { problemApi } from "@/services/problem.service";
 import { revisionApi } from "@/services/revision.service";
@@ -137,8 +137,8 @@ function EditProblemForm({
     handleSubmit,
     formState: { errors, isDirty },
     setError,
-  } = useForm<CreateProblemFormValues, unknown, CreateProblemPayload>({
-    resolver: zodResolver(createProblemSchema),
+  } = useForm<UpdateProblemFormValues, unknown, UpdateProblemPayload>({
+    resolver: zodResolver(updateProblemSchema),
     defaultValues: {
       title: problem.title,
       url: problem.url,
@@ -148,12 +148,15 @@ function EditProblemForm({
   });
 
   const mutation = useMutation({
-    mutationFn: (values: CreateProblemPayload) =>
+    mutationFn: (values: UpdateProblemPayload) =>
       problemApi.update(problem._id, {
-        title: values.title,
-        url: values.url,
-        attemptType: values.attemptType,
-        timeTaken: values.timeTaken ?? null,
+        ...(values.title !== undefined ? { title: values.title } : {}),
+        ...(values.url !== undefined ? { url: values.url } : {}),
+        ...(values.attemptType !== undefined
+          ? { attemptType: values.attemptType }
+          : {}),
+        timeTaken:
+          values.timeTaken === undefined ? null : (values.timeTaken ?? null),
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -194,13 +197,16 @@ function EditProblemForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="edit-url">Link</Label>
+        <Label htmlFor="edit-url">LeetCode URL</Label>
         <Input
           id="edit-url"
           type="url"
           aria-invalid={Boolean(errors.url)}
           {...register("url")}
         />
+        <p className="text-muted-foreground text-xs">
+          Changing the URL re-fetches title, difficulty, and topics.
+        </p>
         {errors.url ? (
           <p role="alert" className="text-destructive text-sm">
             {errors.url.message}
@@ -301,6 +307,10 @@ export function ProblemDetailsView() {
       return result.problem;
     },
     enabled: Boolean(problemId),
+    refetchInterval: (query) => {
+      const problem = query.state.data;
+      return problem?.metadataFetched === false ? 2000 : false;
+    },
   });
 
   const revisionsQuery = useQuery({
@@ -329,6 +339,22 @@ export function ProblemDetailsView() {
         error instanceof ApiError
           ? error.message
           : "Could not delete problem",
+      );
+    },
+  });
+
+  const retryMetadataMutation = useMutation({
+    mutationFn: () => problemApi.retryMetadata(problemId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["problems"] });
+      toast.success("Retrying metadata fetch...");
+      void problemQuery.refetch();
+    },
+    onError: (error: Error) => {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Could not retry metadata fetch",
       );
     },
   });
@@ -374,6 +400,7 @@ export function ProblemDetailsView() {
   const upcomingRevisions = revisions.filter((revision) => !revision.completed);
   const completedRevisions = revisions.filter((revision) => revision.completed);
   const status = problemStatus(revisions);
+  const topics = problem.topics ?? [];
 
   return (
     <div className="space-y-6">
@@ -391,6 +418,12 @@ export function ProblemDetailsView() {
             <h1 className="text-2xl font-semibold tracking-tight">
               {problem.title}
             </h1>
+            {problem.metadataFetched === false ? (
+              <Badge variant="secondary">Fetching details...</Badge>
+            ) : null}
+            {problem.difficulty ? (
+              <Badge variant="outline">{problem.difficulty}</Badge>
+            ) : null}
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
           <p className="text-muted-foreground text-sm">
@@ -399,6 +432,15 @@ export function ProblemDetailsView() {
               ? ` · ${problem.timeTaken} min`
               : null}
           </p>
+          {topics.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {topics.map((topic) => (
+                <Badge key={topic} variant="outline">
+                  {topic}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -430,12 +472,34 @@ export function ProblemDetailsView() {
         </div>
       </div>
 
+      {problem.metadataError && problem.metadataFetched === false ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 rounded-lg border px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p>
+            Could not fetch problem details.{" "}
+            <span className="text-muted-foreground">{problem.metadataError}</span>
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={retryMetadataMutation.isPending}
+            onClick={() => retryMetadataMutation.mutate()}
+          >
+            <RefreshCw className="size-3.5" />
+            {retryMetadataMutation.isPending ? "Retrying…" : "Retry fetch"}
+          </Button>
+        </div>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>{editing ? "Edit problem" : "Details"}</CardTitle>
           <CardDescription>
             {editing
-              ? "Update problem fields. Changing attempt type reschedules pending revisions."
+              ? "Update problem fields. Changing the URL re-fetches LeetCode metadata."
               : "Core info for this tracked problem."}
           </CardDescription>
         </CardHeader>
@@ -469,6 +533,36 @@ export function ProblemDetailsView() {
                   {problem.url}
                 </a>
               </div>
+              {problem.difficulty ? (
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <span className="text-muted-foreground w-28 shrink-0">
+                    Difficulty
+                  </span>
+                  <Badge variant="outline">{problem.difficulty}</Badge>
+                </div>
+              ) : null}
+              {topics.length > 0 ? (
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <span className="text-muted-foreground w-28 shrink-0">
+                    Topics
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {topics.map((topic) => (
+                      <Badge key={topic} variant="outline">
+                        {topic}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {problem.problemId ? (
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <span className="text-muted-foreground w-28 shrink-0">
+                    LeetCode ID
+                  </span>
+                  <span>{problem.problemId}</span>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
                 <span className="text-muted-foreground w-28 shrink-0">
                   Attempt type

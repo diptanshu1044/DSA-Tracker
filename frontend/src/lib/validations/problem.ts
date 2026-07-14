@@ -14,14 +14,22 @@ function optionalTimeTaken(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
+const LEETCODE_PROBLEM_URL =
+  /^https?:\/\/(www\.)?leetcode\.com\/problems\/[a-z0-9]+(?:-[a-z0-9]+)*\/?(\?.*)?$/i;
+
+export const leetCodeUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "Problem link is required")
+  .max(2048)
+  .url("Enter a valid URL")
+  .refine(
+    (value) => LEETCODE_PROBLEM_URL.test(value),
+    "Enter a valid LeetCode problem URL (e.g. https://leetcode.com/problems/two-sum/)",
+  );
+
 export const createProblemSchema = z.object({
-  title: z.string().trim().min(1, "Problem name is required").max(300),
-  url: z
-    .string()
-    .trim()
-    .min(1, "Problem link is required")
-    .max(2048)
-    .url("Enter a valid URL"),
+  url: leetCodeUrlSchema,
   attemptType: z.enum(["SELF", "HINT", "VIDEO"], {
     error: "Select how you attempted the problem",
   }),
@@ -41,6 +49,26 @@ export const createProblemSchema = z.object({
 export type CreateProblemFormValues = z.input<typeof createProblemSchema>;
 export type CreateProblemPayload = z.output<typeof createProblemSchema>;
 
-export const updateProblemSchema = createProblemSchema.partial();
+export const updateProblemSchema = z.object({
+  title: z.string().trim().min(1, "Problem name is required").max(300).optional(),
+  url: leetCodeUrlSchema.optional(),
+  attemptType: z
+    .enum(["SELF", "HINT", "VIDEO"], {
+      error: "Select how you attempted the problem",
+    })
+    .optional(),
+  timeTaken: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform(optionalTimeTaken)
+    .pipe(
+      z
+        .number()
+        .min(0, "Time taken cannot be negative")
+        .max(24 * 60, "Time taken cannot exceed 24 hours")
+        .optional(),
+    ),
+});
+
 export type UpdateProblemFormValues = z.input<typeof updateProblemSchema>;
 export type UpdateProblemPayload = z.output<typeof updateProblemSchema>;
