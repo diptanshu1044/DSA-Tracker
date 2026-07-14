@@ -28,6 +28,22 @@ export function isOverdue(dueDate: string, now: Date = new Date()): boolean {
   return date < startOfUtcDay(now);
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function daysOverdueCount(
+  dueDate: string,
+  now: Date = new Date(),
+): number {
+  const date = new Date(dueDate);
+  if (Number.isNaN(date.getTime())) {
+    return 1;
+  }
+  return Math.max(
+    1,
+    Math.ceil((startOfUtcDay(now).getTime() - date.getTime()) / MS_PER_DAY),
+  );
+}
+
 export function formatDueLabel(dueDate: string, overdue: boolean): string {
   const date = new Date(dueDate);
   if (Number.isNaN(date.getTime())) {
@@ -35,16 +51,41 @@ export function formatDueLabel(dueDate: string, overdue: boolean): string {
   }
 
   if (overdue) {
-    const startToday = startOfUtcDay();
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const days = Math.max(
-      1,
-      Math.ceil((startToday.getTime() - date.getTime()) / msPerDay),
-    );
+    const days = daysOverdueCount(dueDate);
     return days === 1 ? "1 day overdue" : `${days} days overdue`;
   }
 
   return "Due today";
+}
+
+export function formatDaysOverdue(days: number): string {
+  return days === 1 ? "1 day overdue" : `${days} days overdue`;
+}
+
+export function formatAddedLabel(
+  createdAt: string,
+  addedToday: boolean,
+): string {
+  if (addedToday) {
+    return "Added Today";
+  }
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "Recently added";
+  }
+
+  const days = Math.max(
+    1,
+    Math.ceil(
+      (startOfUtcDay().getTime() - startOfUtcDay(date).getTime()) / MS_PER_DAY,
+    ),
+  );
+
+  if (days === 1) {
+    return "Added yesterday";
+  }
+  return `Added ${days} days ago`;
 }
 
 export function formatShortDate(value: string): string {

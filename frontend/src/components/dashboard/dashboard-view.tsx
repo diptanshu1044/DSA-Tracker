@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Plus } from "lucide-react";
 import { StatsCards } from "@/components/dashboard/stats-cards";
-import { RevisionQueue } from "@/components/dashboard/revision-queue";
+import { TodaysQueueView } from "@/components/dashboard/todays-queue";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -103,7 +103,19 @@ export function DashboardView() {
 
       <StatsCards stats={data.stats} />
 
-      <RevisionQueue items={data.revisionQueue} />
+      <TodaysQueueView
+        queue={
+          data.todaysQueue ?? {
+            summary: {
+              overdue: 0,
+              dueToday: 0,
+              newProblems: 0,
+              totalTasks: 0,
+            },
+            sections: [],
+          }
+        }
+      />
 
       {isFetching ? (
         <p className="text-muted-foreground text-xs" aria-live="polite">

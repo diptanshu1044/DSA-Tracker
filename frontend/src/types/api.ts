@@ -113,10 +113,68 @@ export interface DashboardQueueItem {
   problem: DashboardProblemSummary | null;
 }
 
+export type QueueSectionId =
+  | "overdue"
+  | "due_today"
+  | "new_problems"
+  | "high_priority"
+  | "weak_topics"
+  | "recommended_practice"
+  | "recently_forgotten"
+  | "continue_learning";
+
+export interface QueueProblemSummary {
+  _id: string;
+  title: string;
+  url: string;
+  difficulty?: Difficulty;
+  topics: string[];
+  attemptType: AttemptType;
+  createdAt: string;
+}
+
+export interface ReviewQueueItem {
+  kind: "review";
+  revisionId: string;
+  dueDate: string;
+  revisionNumber: number;
+  daysOverdue?: number;
+  problem: QueueProblemSummary | null;
+}
+
+export interface NewProblemQueueItem {
+  kind: "new_problem";
+  problem: QueueProblemSummary;
+  addedToday: boolean;
+}
+
+export type QueueItem = ReviewQueueItem | NewProblemQueueItem;
+
+export interface QueueSection {
+  id: QueueSectionId;
+  title: string;
+  icon: string;
+  items: QueueItem[];
+}
+
+export interface TodaysQueueSummary {
+  overdue: number;
+  dueToday: number;
+  newProblems: number;
+  totalTasks: number;
+}
+
+export interface TodaysQueue {
+  summary: TodaysQueueSummary;
+  sections: QueueSection[];
+}
+
 export interface Dashboard {
   stats: DashboardStats;
   canAddProblem: boolean;
+  /** @deprecated Prefer todaysQueue */
   revisionQueue: DashboardQueueItem[];
+  todaysQueue: TodaysQueue;
 }
 
 export interface RevisionProblemSummary {

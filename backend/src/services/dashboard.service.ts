@@ -3,6 +3,11 @@ import { Revision } from "../models/Revision.js";
 import { PENDING_REVISION_LIMIT } from "../constants/limits.js";
 import { AppError } from "../utils/AppError.js";
 import { startOfNextUtcDay, startOfUtcDay } from "../utils/dates.js";
+import {
+  buildTodaysQueue,
+  reviewItemsFromQueue,
+  type TodaysQueue,
+} from "./queue/index.js";
 
 export interface DashboardProblemSummary {
   _id: string;
@@ -30,56 +35,32 @@ export interface DashboardStats {
 export interface DashboardData {
   stats: DashboardStats;
   canAddProblem: boolean;
+  /** @deprecated Prefer todaysQueue — flat list of overdue + due today reviews. */
   revisionQueue: DashboardQueueItem[];
+  todaysQueue: TodaysQueue;
 }
 
 export async function getDashboard(userId: string): Promise<DashboardData> {
   const todayStart = startOfUtcDay();
   const tomorrowStart = startOfNextUtcDay();
 
-  const [
-    problemsAdded,
-    pendingRevisions,
-    overdue,
-    addedToday,
-    queueDocs,
-  ] = await Promise.all([
-    Problem.countDocuments({ userId }),
-    Revision.countDocuments({ userId, completed: false }),
-    Revision.countDocuments({
-      userId,
-      completed: false,
-      dueDate: { $lt: todayStart },
-    }),
-    Problem.countDocuments({
-      userId,
-      createdAt: { $gte: todayStart, $lt: tomorrowStart },
-    }),
-    Revision.find({
-      userId,
-      completed: false,
-      dueDate: { $lt: tomorrowStart },
-    })
-      .sort({ dueDate: 1, revisionNumber: 1 })
-      .limit(50)
-      .populate("problemId", "title url attemptType")
-      .lean(),
-  ]);
+  const [problemsAdded, pendingRevisions, overdue, addedToday, todaysQueue] =
+    await Promise.all([
+      Problem.countDocuments({ userId }),
+      Revision.countDocuments({ userId, completed: false }),
+      Revision.countDocuments({
+        userId,
+        completed: false,
+        dueDate: { $lt: todayStart },
+      }),
+      Problem.countDocuments({
+        userId,
+        createdAt: { $gte: todayStart, $lt: tomorrowStart },
+      }),
+      buildTodaysQueue(userId),
+    ]);
 
-  const revisionQueue: DashboardQueueItem[] = queueDocs.map((doc) => {
-    const populated = toProblemSummary(doc.problemId);
-    const dueDate = doc.dueDate;
-    const overdueItem = dueDate < todayStart;
-
-    return {
-      _id: String(doc._id),
-      dueDate,
-      revisionNumber: doc.revisionNumber,
-      completed: doc.completed,
-      overdue: overdueItem,
-      problem: populated,
-    };
-  });
+  const revisionQueue: DashboardQueueItem[] = reviewItemsFromQueue(todaysQueue);
 
   return {
     stats: {
@@ -90,6 +71,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     },
     canAddProblem: pendingRevisions <= PENDING_REVISION_LIMIT,
     revisionQueue,
+    todaysQueue,
   };
 }
 
@@ -105,27 +87,4 @@ export async function assertCanAddProblem(userId: string): Promise<void> {
       403,
     );
   }
-}
-
-function toProblemSummary(value: unknown): DashboardProblemSummary | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  if (
-    typeof record.title !== "string" ||
-    typeof record.url !== "string" ||
-    typeof record.attemptType !== "string" ||
-    record._id == null
-  ) {
-    return null;
-  }
-
-  return {
-    _id: String(record._id),
-    title: record.title,
-    url: record.url,
-    attemptType: record.attemptType,
-  };
 }
