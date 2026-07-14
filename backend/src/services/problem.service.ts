@@ -20,8 +20,19 @@ import type {
 } from "../validators/problem.validators.js";
 import { assertCanAddProblem } from "./dashboard.service.js";
 
-/** Spaced-repetition offset days for auto-scheduled revisions */
-export const DEFAULT_REVISION_INTERVALS_DAYS = [1, 3, 7, 15, 30] as const;
+/**
+ * Revision offsets by attempt type (days from creation, UTC midnight):
+ * - SELF: no revisions
+ * - HINT / VIDEO: tomorrow (+1) and +7 days
+ */
+export const REVISION_INTERVALS_BY_ATTEMPT: Record<
+  AttemptType,
+  readonly number[]
+> = {
+  SELF: [],
+  HINT: [1, 7],
+  VIDEO: [1, 7],
+};
 
 export async function assertUniqueProblemUrl(
   userId: string,
@@ -41,12 +52,18 @@ export async function assertUniqueProblemUrl(
   }
 }
 
-async function scheduleDefaultRevisions(
+async function scheduleRevisionsForAttempt(
   userId: string,
   problemId: IProblemDocument["_id"],
+  attemptType: AttemptType,
   from: Date = new Date(),
 ): Promise<void> {
-  const docs = DEFAULT_REVISION_INTERVALS_DAYS.map((days, index) => {
+  const intervals = REVISION_INTERVALS_BY_ATTEMPT[attemptType];
+  if (intervals.length === 0) {
+    return;
+  }
+
+  const docs = intervals.map((days, index) => {
     const dueDate = new Date(from);
     dueDate.setUTCDate(dueDate.getUTCDate() + days);
     dueDate.setUTCHours(0, 0, 0, 0);
@@ -79,7 +96,11 @@ export async function createProblem(
       ...(input.timeTaken !== undefined ? { timeTaken: input.timeTaken } : {}),
     });
 
-    await scheduleDefaultRevisions(userId, problem._id);
+    await scheduleRevisionsForAttempt(
+      userId,
+      problem._id,
+      input.attemptType,
+    );
     return problem;
   } catch (error) {
     if (isDuplicateKeyError(error)) {
