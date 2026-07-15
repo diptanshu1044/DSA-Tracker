@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { ExternalLink, Plus, Search, BookOpen, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,35 @@ function isAttemptType(value: string | null): value is AttemptType {
   return value === "SELF" || value === "HINT" || value === "VIDEO";
 }
 
+function parseAttemptType(value: string | null): AttemptType | "ALL" {
+  return isAttemptType(value) ? value : "ALL";
+}
+
+function parseStatus(value: string | null): ProblemStatus | null {
+  return isProblemStatus(value) ? value : null;
+}
+
+function parseTopic(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function dateFilterFromParams(params: URLSearchParams): DateFilterValue {
+  return dateFilterFromSearchParams({
+    days: params.get("days"),
+    createdAfter: params.get("createdAfter"),
+    createdBefore: params.get("createdBefore"),
+  });
+}
+
+/** Prefer the real URL after history.replaceState; fall back to Next search params. */
+function readFilterParams(fallback: URLSearchParams): URLSearchParams {
+  if (typeof window !== "undefined") {
+    return new URLSearchParams(window.location.search);
+  }
+  return fallback;
+}
+
 function ProblemsListSkeleton() {
   return (
     <div className="space-y-6">
@@ -87,43 +116,36 @@ function ProblemsListSkeleton() {
 }
 
 function ProblemsListContent() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const statusParam = searchParams.get("status");
-  const topicParam = searchParams.get("topic");
-  const attemptTypeParam = searchParams.get("attemptType");
-
-  const statusFilter = isProblemStatus(statusParam) ? statusParam : null;
-  const topicFilter = topicParam?.trim() || null;
-  const initialAttemptType = isAttemptType(attemptTypeParam)
-    ? attemptTypeParam
-    : "ALL";
-  const dateFilter = dateFilterFromSearchParams({
-    days: searchParams.get("days"),
-    createdAfter: searchParams.get("createdAfter"),
-    createdBefore: searchParams.get("createdBefore"),
-  });
-  const dateParams = toListDateParams(dateFilter);
-  const dateLabel = dateFilterLabel(dateFilter);
-  const dateFilterKey = [
-    searchParams.get("days") ?? "",
-    searchParams.get("createdAfter") ?? "",
-    searchParams.get("createdBefore") ?? "",
-  ].join("|");
+  const paramsKey = searchParams.toString();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [attemptType, setAttemptType] = useState<AttemptType | "ALL">(
-    initialAttemptType,
+  const [attemptType, setAttemptType] = useState<AttemptType | "ALL">(() =>
+    parseAttemptType(readFilterParams(searchParams).get("attemptType")),
+  );
+  const [statusFilter, setStatusFilter] = useState<ProblemStatus | null>(() =>
+    parseStatus(readFilterParams(searchParams).get("status")),
+  );
+  const [topicFilter, setTopicFilter] = useState<string | null>(() =>
+    parseTopic(readFilterParams(searchParams).get("topic")),
+  );
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>(() =>
+    dateFilterFromParams(readFilterParams(searchParams)),
   );
   const [page, setPage] = useState(1);
 
+  // Sync when Next.js updates search params (Analytics deep links / browser nav).
+  // Local filter changes use history.replaceState so they do not fight this effect.
   useEffect(() => {
-    setAttemptType(initialAttemptType);
+    const params = readFilterParams(new URLSearchParams(paramsKey));
+    setAttemptType(parseAttemptType(params.get("attemptType")));
+    setStatusFilter(parseStatus(params.get("status")));
+    setTopicFilter(parseTopic(params.get("topic")));
+    setDateFilter(dateFilterFromParams(params));
     setPage(1);
-  }, [initialAttemptType, statusFilter, topicFilter, dateFilterKey]);
+  }, [paramsKey]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -133,36 +155,65 @@ function ProblemsListContent() {
     return () => window.clearTimeout(id);
   }, [search]);
 
-  function replaceParams(mutate: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(searchParams.toString());
-    mutate(params);
+  const dateParams = toListDateParams(dateFilter);
+  const dateLabel = dateFilterLabel(dateFilter);
+
+  function writeFiltersToUrl(next: {
+    attemptType: AttemptType | "ALL";
+    status: ProblemStatus | null;
+    topic: string | null;
+    date: DateFilterValue;
+  }) {
+    const params = new URLSearchParams();
+    if (next.attemptType !== "ALL") {
+      params.set("attemptType", next.attemptType);
+    }
+    if (next.status) {
+      params.set("status", next.status);
+    }
+    if (next.topic) {
+      params.set("topic", next.topic);
+    }
+    applyDateFilterToParams(params, next.date);
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    window.history.replaceState(
+      null,
+      "",
+      query ? `${pathname}?${query}` : pathname,
+    );
   }
 
   function updateAttemptType(next: AttemptType | "ALL") {
     setAttemptType(next);
     setPage(1);
-    replaceParams((params) => {
-      if (next === "ALL") {
-        params.delete("attemptType");
-      } else {
-        params.set("attemptType", next);
-      }
+    writeFiltersToUrl({
+      attemptType: next,
+      status: statusFilter,
+      topic: topicFilter,
+      date: dateFilter,
     });
   }
 
   function updateDateFilter(next: DateFilterValue) {
+    setDateFilter(next);
     setPage(1);
-    replaceParams((params) => {
-      applyDateFilterToParams(params, next);
+    writeFiltersToUrl({
+      attemptType,
+      status: statusFilter,
+      topic: topicFilter,
+      date: next,
     });
   }
 
   function clearStatusAndTopicFilters() {
-    replaceParams((params) => {
-      params.delete("status");
-      params.delete("topic");
+    setStatusFilter(null);
+    setTopicFilter(null);
+    setPage(1);
+    writeFiltersToUrl({
+      attemptType,
+      status: null,
+      topic: null,
+      date: dateFilter,
     });
   }
 
@@ -170,12 +221,15 @@ function ProblemsListContent() {
     setSearch("");
     setDebouncedSearch("");
     setAttemptType("ALL");
+    setStatusFilter(null);
+    setTopicFilter(null);
+    setDateFilter({ mode: "all" });
     setPage(1);
-    replaceParams((params) => {
-      params.delete("attemptType");
-      params.delete("status");
-      params.delete("topic");
-      applyDateFilterToParams(params, { mode: "all" });
+    writeFiltersToUrl({
+      attemptType: "ALL",
+      status: null,
+      topic: null,
+      date: { mode: "all" },
     });
   }
 
@@ -193,7 +247,7 @@ function ProblemsListContent() {
       },
     ],
     queryFn: async () => {
-      const result = await problemApi.list({
+      return problemApi.list({
         page,
         limit: PAGE_SIZE,
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
@@ -202,8 +256,8 @@ function ProblemsListContent() {
         ...(topicFilter ? { topic: topicFilter } : {}),
         ...dateParams,
       });
-      return result;
     },
+    placeholderData: keepPreviousData,
     refetchInterval: (query) => {
       const problems = query.state.data?.problems ?? [];
       const pending = problems.some(
@@ -213,11 +267,11 @@ function ProblemsListContent() {
     },
   });
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <ProblemsListSkeleton />;
   }
 
-  if (isError || !data) {
+  if ((isError && !data) || !data) {
     const message =
       error instanceof ApiError
         ? error.message
@@ -409,7 +463,12 @@ function ProblemsListContent() {
               className="border-0"
             />
           ) : (
-            <ul className="divide-border divide-y">
+            <ul
+              className={cn(
+                "divide-border divide-y",
+                isFetching && "opacity-70 transition-opacity",
+              )}
+            >
               {problems.map((problem) => (
                 <li
                   key={problem._id}

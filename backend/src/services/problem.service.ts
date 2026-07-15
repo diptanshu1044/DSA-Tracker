@@ -238,7 +238,9 @@ export async function listProblems(
   userId: string,
   query: ListProblemsQuery,
 ): Promise<PaginatedResult<IProblemDocument>> {
-  const filter: QueryFilter<IProblem> = { userId };
+  const filter: QueryFilter<IProblem> = {
+    userId: parseObjectId(userId, "user id"),
+  };
 
   if (query.attemptType) {
     filter.attemptType = query.attemptType;
@@ -246,12 +248,20 @@ export async function listProblems(
 
   if (query.search) {
     const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const prefix = new RegExp(`^${escaped}`, "i");
-    filter.$or = [{ title: prefix }, { url: prefix }, { slug: prefix }];
+    filter.$or = [
+      { title: { $regex: escaped, $options: "i" } },
+      { url: { $regex: escaped, $options: "i" } },
+      { slug: { $regex: escaped, $options: "i" } },
+    ];
   }
 
   if (query.topic) {
-    filter.topics = query.topic;
+    if (query.topic === "Untagged") {
+      // Analytics uses "Untagged" for problems with an empty topics array.
+      filter.topics = { $size: 0 } as unknown as string[];
+    } else {
+      filter.topics = query.topic;
+    }
   }
 
   if (query.status) {
