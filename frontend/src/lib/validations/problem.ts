@@ -21,7 +21,20 @@ function optionalTimeTaken(value: unknown): number | undefined {
 }
 
 const LEETCODE_PROBLEM_URL =
-  /^https?:\/\/(www\.)?leetcode\.com\/problems\/[a-z0-9]+(?:-[a-z0-9]+)*\/?(\?.*)?$/i;
+  /^https?:\/\/(www\.)?leetcode\.com\/problems\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[^?#]*)?(\?[^#]*)?(#.*)?$/i;
+
+/** Strip path suffixes like `/description` and normalize to `https://leetcode.com/problems/{slug}`. */
+function normalizeLeetCodeUrl(raw: string): string {
+  const parsed = new URL(raw.trim());
+  const match = parsed.pathname.match(
+    /^\/problems\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/.*)?$/i,
+  );
+  const slug = match?.[1]?.toLowerCase();
+  if (!slug) {
+    return raw.trim();
+  }
+  return `https://leetcode.com/problems/${slug}`;
+}
 
 export const leetCodeUrlSchema = z
   .string()
@@ -32,7 +45,8 @@ export const leetCodeUrlSchema = z
   .refine(
     (value) => LEETCODE_PROBLEM_URL.test(value),
     "Enter a valid LeetCode problem URL (e.g. https://leetcode.com/problems/two-sum/)",
-  );
+  )
+  .transform(normalizeLeetCodeUrl);
 
 export const createProblemSchema = z.object({
   url: leetCodeUrlSchema,

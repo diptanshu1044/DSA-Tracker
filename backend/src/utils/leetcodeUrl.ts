@@ -9,9 +9,12 @@ const LEETCODE_HOSTS = new Set(["leetcode.com", "www.leetcode.com"]);
 
 /**
  * Extract a LeetCode problem slug from a pathname like `/problems/two-sum/`.
+ * Ignores extra path segments such as `/description`, `/solutions`, etc.
  */
 function extractSlug(pathname: string): string | null {
-  const match = pathname.match(/^\/problems\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/i);
+  const match = pathname.match(
+    /^\/problems\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/.*)?$/i,
+  );
   return match?.[1]?.toLowerCase() ?? null;
 }
 
