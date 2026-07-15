@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarRange, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   formatUtcDateKey,
   isUtcDateKey,
-  lastUtcDaysRange,
   toUtcDateKey,
 } from "@/lib/dates";
 
@@ -121,82 +119,45 @@ export function ProblemsDateFilter({
   onChange,
 }: ProblemsDateFilterProps) {
   const today = toUtcDateKey();
-  const [customFrom, setCustomFrom] = useState(
+  const [from, setFrom] = useState(
     value.mode === "range" ? value.from : value.mode === "day" ? value.date : "",
   );
-  const [customTo, setCustomTo] = useState(
+  const [to, setTo] = useState(
     value.mode === "range" ? value.to : value.mode === "day" ? value.date : "",
-  );
-  const [specificDate, setSpecificDate] = useState(
-    value.mode === "day" ? value.date : "",
   );
 
   useEffect(() => {
     if (value.mode === "range") {
-      setCustomFrom(value.from);
-      setCustomTo(value.to);
-      setSpecificDate("");
+      setFrom(value.from);
+      setTo(value.to);
       return;
     }
     if (value.mode === "day") {
-      setSpecificDate(value.date);
-      setCustomFrom(value.date);
-      setCustomTo(value.date);
+      setFrom(value.date);
+      setTo(value.date);
       return;
     }
-    if (value.mode === "all" || value.mode === "days") {
-      setSpecificDate("");
-    }
+    setFrom("");
+    setTo("");
   }, [value]);
 
-  function selectDays(days: number) {
-    onChange({ mode: "days", days });
-  }
-
-  function applySpecificDate() {
-    if (!isUtcDateKey(specificDate)) return;
-    onChange({ mode: "day", date: specificDate });
-  }
-
-  function applyRange() {
-    if (!isUtcDateKey(customFrom) || !isUtcDateKey(customTo)) return;
-    const from = customFrom <= customTo ? customFrom : customTo;
-    const to = customFrom <= customTo ? customTo : customFrom;
-    if (from === to) {
-      onChange({ mode: "day", date: from });
+  function commitRange(nextFrom: string, nextTo: string) {
+    if (!isUtcDateKey(nextFrom) || !isUtcDateKey(nextTo)) return;
+    const start = nextFrom <= nextTo ? nextFrom : nextTo;
+    const end = nextFrom <= nextTo ? nextTo : nextFrom;
+    if (start === end) {
+      onChange({ mode: "day", date: start });
       return;
     }
-    onChange({ mode: "range", from, to });
+    onChange({ mode: "range", from: start, to: end });
   }
 
-  const activeLabel = dateFilterLabel(value);
-  const presetRangeHint =
-    value.mode === "days" ? lastUtcDaysRange(value.days) : null;
-
   return (
-    <div className="space-y-3 rounded-xl border p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="text-muted-foreground size-4" />
-          <p className="text-sm font-medium">Solved date</p>
-        </div>
-        {value.mode !== "all" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => onChange({ mode: "all" })}
-          >
-            <X className="size-3.5" />
-            Clear date
-          </Button>
-        ) : null}
-      </div>
-
+    <div className="flex flex-col gap-2">
       <div
         className="flex flex-wrap gap-2"
         role="group"
-        aria-label="Quick date ranges"
+        aria-label="Filter by solved date"
       >
         <Button
           type="button"
@@ -216,97 +177,56 @@ export function ProblemsDateFilter({
               size="sm"
               variant={selected ? "secondary" : "outline"}
               aria-pressed={selected}
-              onClick={() => selectDays(days)}
+              onClick={() => onChange({ mode: "days", days })}
             >
-              Last {days} days
+              Last {days}d
             </Button>
           );
         })}
+        {value.mode !== "all" ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => onChange({ mode: "all" })}
+          >
+            <X className="size-3.5" />
+            Clear
+          </Button>
+        ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="problems-specific-date">Specific day</Label>
-          <div className="flex gap-2">
-            <Input
-              id="problems-specific-date"
-              type="date"
-              max={today}
-              value={specificDate}
-              onChange={(event) => setSpecificDate(event.target.value)}
-              aria-label="Filter by specific day"
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!isUtcDateKey(specificDate)}
-              onClick={applySpecificDate}
-            >
-              Apply
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Custom range</Label>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-0 flex-1 space-y-1">
-              <Label
-                htmlFor="problems-range-from"
-                className="text-muted-foreground text-xs font-normal"
-              >
-                From
-              </Label>
-              <Input
-                id="problems-range-from"
-                type="date"
-                max={today}
-                value={customFrom}
-                onChange={(event) => setCustomFrom(event.target.value)}
-              />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <Label
-                htmlFor="problems-range-to"
-                className="text-muted-foreground text-xs font-normal"
-              >
-                To
-              </Label>
-              <Input
-                id="problems-range-to"
-                type="date"
-                max={today}
-                value={customTo}
-                onChange={(event) => setCustomTo(event.target.value)}
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!isUtcDateKey(customFrom) || !isUtcDateKey(customTo)}
-              onClick={applyRange}
-            >
-              Apply
-            </Button>
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="date"
+          max={today}
+          value={from}
+          onChange={(event) => {
+            const nextFrom = event.target.value;
+            setFrom(nextFrom);
+            if (isUtcDateKey(nextFrom) && isUtcDateKey(to)) {
+              commitRange(nextFrom, to);
+            }
+          }}
+          aria-label="From date"
+          className="h-7 w-auto min-w-[9.5rem] text-[0.8rem]"
+        />
+        <span className="text-muted-foreground text-xs">to</span>
+        <Input
+          type="date"
+          max={today}
+          value={to}
+          onChange={(event) => {
+            const nextTo = event.target.value;
+            setTo(nextTo);
+            if (isUtcDateKey(from) && isUtcDateKey(nextTo)) {
+              commitRange(from, nextTo);
+            }
+          }}
+          aria-label="To date"
+          className="h-7 w-auto min-w-[9.5rem] text-[0.8rem]"
+        />
       </div>
-
-      {activeLabel ? (
-        <p className="text-muted-foreground text-xs">
-          Showing problems solved on {activeLabel}
-          {presetRangeHint
-            ? ` (${formatUtcDateKey(presetRangeHint.createdAfter)} – ${formatUtcDateKey(presetRangeHint.createdBefore)})`
-            : null}
-          .
-        </p>
-      ) : (
-        <p className="text-muted-foreground text-xs">
-          Pick a day on the calendar, choose last X days, or set a custom range.
-        </p>
-      )}
     </div>
   );
 }

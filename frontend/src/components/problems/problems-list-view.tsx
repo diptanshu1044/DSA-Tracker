@@ -78,8 +78,6 @@ function ProblemsListSkeleton() {
         </div>
         <Skeleton className="h-8 w-32" />
       </div>
-      <Skeleton className="h-40 w-full rounded-xl" />
-      <Skeleton className="h-36 w-full rounded-xl" />
       <Skeleton className="h-8 w-full max-w-sm" />
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -249,73 +247,81 @@ function ProblemsListContent() {
         }
       />
 
-      <ProblemsCalendar
-        filter={dateFilter}
-        onSelectDay={(date) => updateDateFilter({ mode: "day", date })}
-      />
-
-      <ProblemsDateFilter value={dateFilter} onChange={updateDateFilter} />
-
-      <div className="flex flex-col gap-3">
-        <div className="relative max-w-sm">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by title…"
-            aria-label="Search problems by title"
-            className="pl-8"
-          />
-        </div>
-
-        <div
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label="Filter by attempt type"
-        >
-          {FILTER_OPTIONS.map((option) => {
-            const selected = attemptType === option.value;
-            return (
-              <Button
-                key={option.value}
-                type="button"
-                size="sm"
-                variant={selected ? "secondary" : "outline"}
-                aria-pressed={selected}
-                onClick={() => updateAttemptType(option.value)}
-              >
-                {option.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        {statusFilter || topicFilter || dateLabel ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {dateLabel ? (
-              <Badge variant="secondary">Solved: {dateLabel}</Badge>
-            ) : null}
-            {statusFilter ? (
-              <Badge variant="secondary">
-                Status: {STATUS_LABELS[statusFilter]}
-              </Badge>
-            ) : null}
-            {topicFilter ? (
-              <Badge variant="secondary">Topic: {topicFilter}</Badge>
-            ) : null}
-            {statusFilter || topicFilter ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={clearStatusAndTopicFilters}
-              >
-                <X className="size-3.5" />
-                Clear status / topic
-              </Button>
-            ) : null}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="relative max-w-sm">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by title…"
+              aria-label="Search problems by title"
+              className="pl-8"
+            />
           </div>
-        ) : null}
+
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Filter by attempt type"
+          >
+            {FILTER_OPTIONS.map((option) => {
+              const selected = attemptType === option.value;
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={selected ? "secondary" : "outline"}
+                  aria-pressed={selected}
+                  onClick={() => updateAttemptType(option.value)}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          <ProblemsDateFilter value={dateFilter} onChange={updateDateFilter} />
+
+          {statusFilter || topicFilter || dateLabel ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {dateLabel ? (
+                <Badge variant="secondary">Solved: {dateLabel}</Badge>
+              ) : null}
+              {statusFilter ? (
+                <Badge variant="secondary">
+                  Status: {STATUS_LABELS[statusFilter]}
+                </Badge>
+              ) : null}
+              {topicFilter ? (
+                <Badge variant="secondary">Topic: {topicFilter}</Badge>
+              ) : null}
+              {statusFilter || topicFilter ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearStatusAndTopicFilters}
+                >
+                  <X className="size-3.5" />
+                  Clear status / topic
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <ProblemsCalendar
+          filter={dateFilter}
+          onSelectDay={(date) => {
+            if (dateFilter.mode === "day" && dateFilter.date === date) {
+              updateDateFilter({ mode: "all" });
+              return;
+            }
+            updateDateFilter({ mode: "day", date });
+          }}
+        />
       </div>
 
       <Card>
