@@ -32,20 +32,22 @@ export function Navbar() {
   }
 
   return (
-    <header className="bg-background/80 sticky top-0 z-40 flex h-14 items-center gap-3 border-b px-4 backdrop-blur">
+    <header className="bg-background/85 sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-md md:px-6">
       <MobileSidebar />
       <div className="flex flex-1 items-center justify-between gap-3">
-        <p className="text-muted-foreground truncate text-sm md:hidden">
+        <p className="text-muted-foreground truncate text-sm font-medium md:hidden">
           DSA Tracker
         </p>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="icon"
             type="button"
             className="relative"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label="Toggle theme"
+            aria-label={
+              theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+            }
           >
             <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
             <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
@@ -54,7 +56,7 @@ export function Navbar() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="hover:bg-muted inline-flex h-9 items-center gap-2 rounded-lg px-2"
+                className="hover:bg-muted inline-flex h-9 items-center gap-2 rounded-lg px-2 transition-colors focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
                 aria-label="Account menu"
               >
                 <Avatar className="size-7">

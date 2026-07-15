@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProblemsCalendar } from "@/components/problems/problems-calendar";
 import {
@@ -37,6 +38,7 @@ import {
   type AttemptType,
   type ProblemStatus,
 } from "@/types/api";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
@@ -78,12 +80,7 @@ function ProblemsListSkeleton() {
         </div>
         <Skeleton className="h-8 w-32" />
       </div>
-      <Skeleton className="h-8 w-full max-w-sm" />
-      <div className="flex flex-wrap gap-2">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-7 w-24 rounded-lg" />
-        ))}
-      </div>
+      <Skeleton className="h-40 w-full rounded-xl" />
       <Skeleton className="h-72 w-full rounded-xl" />
     </div>
   );
@@ -169,6 +166,19 @@ function ProblemsListContent() {
     });
   }
 
+  function clearAllFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setAttemptType("ALL");
+    setPage(1);
+    replaceParams((params) => {
+      params.delete("attemptType");
+      params.delete("status");
+      params.delete("topic");
+      applyDateFilterToParams(params, { mode: "all" });
+    });
+  }
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "problems",
@@ -247,85 +257,126 @@ function ProblemsListContent() {
         }
       />
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="relative max-w-sm">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by title…"
-              aria-label="Search problems by title"
-              className="pl-8"
-            />
-          </div>
+      <section
+        aria-label="Problem filters"
+        className="bg-card text-card-foreground rounded-xl ring-1 ring-foreground/10"
+      >
+        <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-start lg:gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="problems-search">Search</Label>
+              <div className="relative max-w-md">
+                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+                <Input
+                  id="problems-search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by title…"
+                  className="pl-8"
+                />
+              </div>
+            </div>
 
-          <div
-            className="flex flex-wrap gap-2"
-            role="group"
-            aria-label="Filter by attempt type"
-          >
-            {FILTER_OPTIONS.map((option) => {
-              const selected = attemptType === option.value;
-              return (
-                <Button
-                  key={option.value}
-                  type="button"
-                  size="sm"
-                  variant={selected ? "secondary" : "outline"}
-                  aria-pressed={selected}
-                  onClick={() => updateAttemptType(option.value)}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium" id="attempt-type-label">
+                Attempt type
+              </p>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-labelledby="attempt-type-label"
+              >
+                {FILTER_OPTIONS.map((option) => {
+                  const selected = attemptType === option.value;
+                  return (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={selected ? "secondary" : "outline"}
+                      aria-pressed={selected}
+                      onClick={() => updateAttemptType(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
 
-          <ProblemsDateFilter value={dateFilter} onChange={updateDateFilter} />
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium" id="date-filter-label">
+                Solved date
+              </p>
+              <div aria-labelledby="date-filter-label">
+                <ProblemsDateFilter
+                  value={dateFilter}
+                  onChange={updateDateFilter}
+                />
+              </div>
+            </div>
 
-          {statusFilter || topicFilter || dateLabel ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {dateLabel ? (
-                <Badge variant="secondary">Solved: {dateLabel}</Badge>
-              ) : null}
-              {statusFilter ? (
-                <Badge variant="secondary">
-                  Status: {STATUS_LABELS[statusFilter]}
-                </Badge>
-              ) : null}
-              {topicFilter ? (
-                <Badge variant="secondary">Topic: {topicFilter}</Badge>
-              ) : null}
-              {statusFilter || topicFilter ? (
+            {hasFilters ? (
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                {debouncedSearch ? (
+                  <Badge variant="secondary">Search: {debouncedSearch}</Badge>
+                ) : null}
+                {attemptType !== "ALL" ? (
+                  <Badge variant="secondary">
+                    Attempt: {attemptTypeLabel(attemptType)}
+                  </Badge>
+                ) : null}
+                {dateLabel ? (
+                  <Badge variant="secondary">Solved: {dateLabel}</Badge>
+                ) : null}
+                {statusFilter ? (
+                  <Badge variant="secondary">
+                    Status: {STATUS_LABELS[statusFilter]}
+                  </Badge>
+                ) : null}
+                {topicFilter ? (
+                  <Badge variant="secondary">Topic: {topicFilter}</Badge>
+                ) : null}
+                {statusFilter || topicFilter ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={clearStatusAndTopicFilters}
+                  >
+                    <X className="size-3.5" />
+                    Clear status / topic
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={clearStatusAndTopicFilters}
+                  onClick={clearAllFilters}
                 >
                   <X className="size-3.5" />
-                  Clear status / topic
+                  Clear all
                 </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+              </div>
+            ) : null}
+          </div>
 
-        <ProblemsCalendar
-          filter={dateFilter}
-          onSelectDay={(date) => {
-            if (dateFilter.mode === "day" && dateFilter.date === date) {
-              updateDateFilter({ mode: "all" });
-              return;
-            }
-            updateDateFilter({ mode: "day", date });
-          }}
-        />
-      </div>
+          <ProblemsCalendar
+            className="mx-auto lg:mx-0 lg:sticky lg:top-4"
+            filter={dateFilter}
+            onSelectDay={(date) => {
+              if (dateFilter.mode === "day" && dateFilter.date === date) {
+                updateDateFilter({ mode: "all" });
+                return;
+              }
+              updateDateFilter({ mode: "day", date });
+            }}
+          />
+        </div>
+      </section>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle>Your problems</CardTitle>
           <CardDescription>
             {pagination.total === 0
@@ -337,7 +388,7 @@ function ProblemsListContent() {
                 }`}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {problems.length === 0 ? (
             <EmptyState
               icon={hasFilters ? Search : BookOpen}
@@ -362,9 +413,9 @@ function ProblemsListContent() {
               {problems.map((problem) => (
                 <li
                   key={problem._id}
-                  className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 py-3.5 first:pt-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="min-w-0 space-y-1">
+                  <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/problems/${problem._id}`}
@@ -376,7 +427,19 @@ function ProblemsListContent() {
                         <Badge variant="secondary">Fetching details...</Badge>
                       ) : null}
                       {problem.difficulty ? (
-                        <Badge variant="outline">{problem.difficulty}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            problem.difficulty === "Easy" &&
+                              "border-emerald-500/30 text-emerald-700 dark:text-emerald-400",
+                            problem.difficulty === "Medium" &&
+                              "border-amber-500/30 text-amber-700 dark:text-amber-400",
+                            problem.difficulty === "Hard" &&
+                              "border-rose-500/30 text-rose-700 dark:text-rose-400",
+                          )}
+                        >
+                          {problem.difficulty}
+                        </Badge>
                       ) : null}
                       <Badge variant="outline">
                         {attemptTypeLabel(problem.attemptType)}
@@ -430,7 +493,10 @@ function ProblemsListContent() {
       </Card>
 
       {pagination.totalPages > 1 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav
+          className="flex flex-wrap items-center justify-between gap-3"
+          aria-label="Pagination"
+        >
           <p className="text-muted-foreground text-xs">
             Page {pagination.page} of {pagination.totalPages}
           </p>
@@ -454,7 +520,7 @@ function ProblemsListContent() {
               Next
             </Button>
           </div>
-        </div>
+        </nav>
       ) : null}
 
       {isFetching ? (

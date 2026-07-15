@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   formatUtcDateKey,
   isUtcDateKey,
@@ -153,9 +154,9 @@ export function ProblemsDateFilter({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-2.5">
       <div
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-1.5"
         role="group"
         aria-label="Filter by solved date"
       >
@@ -191,41 +192,50 @@ export function ProblemsDateFilter({
             onClick={() => onChange({ mode: "all" })}
           >
             <X className="size-3.5" />
-            Clear
+            Clear date
           </Button>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          type="date"
-          max={today}
-          value={from}
-          onChange={(event) => {
-            const nextFrom = event.target.value;
-            setFrom(nextFrom);
-            if (isUtcDateKey(nextFrom) && isUtcDateKey(to)) {
-              commitRange(nextFrom, to);
-            }
-          }}
-          aria-label="From date"
-          className="h-7 w-auto min-w-[9.5rem] text-[0.8rem]"
-        />
-        <span className="text-muted-foreground text-xs">to</span>
-        <Input
-          type="date"
-          max={today}
-          value={to}
-          onChange={(event) => {
-            const nextTo = event.target.value;
-            setTo(nextTo);
-            if (isUtcDateKey(from) && isUtcDateKey(nextTo)) {
-              commitRange(from, nextTo);
-            }
-          }}
-          aria-label="To date"
-          className="h-7 w-auto min-w-[9.5rem] text-[0.8rem]"
-        />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="problems-date-from" className="text-muted-foreground text-xs">
+            From
+          </Label>
+          <Input
+            id="problems-date-from"
+            type="date"
+            max={today}
+            value={from}
+            onChange={(event) => {
+              const nextFrom = event.target.value;
+              setFrom(nextFrom);
+              if (isUtcDateKey(nextFrom) && isUtcDateKey(to)) {
+                commitRange(nextFrom, to);
+              }
+            }}
+            className="h-8 w-39 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="problems-date-to" className="text-muted-foreground text-xs">
+            To
+          </Label>
+          <Input
+            id="problems-date-to"
+            type="date"
+            max={today}
+            value={to}
+            onChange={(event) => {
+              const nextTo = event.target.value;
+              setTo(nextTo);
+              if (isUtcDateKey(from) && isUtcDateKey(nextTo)) {
+                commitRange(from, nextTo);
+              }
+            }}
+            className="h-8 w-39 text-xs"
+          />
+        </div>
       </div>
     </div>
   );

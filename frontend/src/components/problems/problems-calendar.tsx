@@ -16,7 +16,7 @@ import type { DateFilterValue } from "@/components/problems/problems-date-filter
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  month: "long",
+  month: "short",
   year: "numeric",
   timeZone: "UTC",
 });
@@ -91,11 +91,13 @@ function isDateInFilter(date: string, filter: DateFilterValue): boolean {
 interface ProblemsCalendarProps {
   filter: DateFilterValue;
   onSelectDay: (date: string) => void;
+  className?: string;
 }
 
 export function ProblemsCalendar({
   filter,
   onSelectDay,
+  className,
 }: ProblemsCalendarProps) {
   const today = toUtcDateKey();
   const todayDate = new Date(`${today}T00:00:00.000Z`);
@@ -134,43 +136,60 @@ export function ProblemsCalendar({
       monthIndex < todayDate.getUTCMonth());
 
   if (isLoading) {
-    return <Skeleton className="h-64 w-full max-w-sm rounded-xl" />;
+    return (
+      <Skeleton
+        className={cn("h-[11.5rem] w-[15.5rem] shrink-0 rounded-xl", className)}
+      />
+    );
   }
 
   return (
-    <div className="w-full max-w-sm space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div
+      className={cn(
+        "bg-card text-card-foreground w-[15.5rem] shrink-0 space-y-2 rounded-xl p-3 ring-1 ring-foreground/10",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-1">
         <Button
           type="button"
-          size="icon-sm"
+          size="icon-xs"
           variant="ghost"
           aria-label="Previous month"
-          onClick={() => setCursor((current) => shiftUtcMonth(current.year, current.monthIndex, -1))}
+          onClick={() =>
+            setCursor((current) =>
+              shiftUtcMonth(current.year, current.monthIndex, -1),
+            )
+          }
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-3.5" />
         </Button>
-        <p className="text-sm font-medium tracking-tight">{monthLabel}</p>
+        <p className="text-xs font-medium tracking-tight">{monthLabel}</p>
         <Button
           type="button"
-          size="icon-sm"
+          size="icon-xs"
           variant="ghost"
           aria-label="Next month"
           disabled={!canGoNext}
-          onClick={() => setCursor((current) => shiftUtcMonth(current.year, current.monthIndex, 1))}
+          onClick={() =>
+            setCursor((current) =>
+              shiftUtcMonth(current.year, current.monthIndex, 1),
+            )
+          }
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-3.5" />
         </Button>
       </div>
 
       <div
-        className="grid grid-cols-7 gap-1"
+        className="grid grid-cols-7 gap-0.5"
         role="grid"
-        aria-label={`Calendar for ${monthLabel}`}
+        aria-label={`Solved-by-day calendar for ${monthLabel}. Select a day to filter.`}
       >
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="text-muted-foreground py-1 text-center text-[11px] font-medium"
+            className="text-muted-foreground py-0.5 text-center text-[10px] font-medium"
           >
             {label}
           </div>
@@ -178,12 +197,13 @@ export function ProblemsCalendar({
 
         {cells.map((cell) => {
           if (cell.kind === "empty") {
-            return <div key={cell.key} className="aspect-square" />;
+            return <div key={cell.key} className="h-7" aria-hidden />;
           }
 
           const selected = isDateInFilter(cell.date, filter);
           const isToday = cell.date === today;
           const isFuture = cell.date > today;
+          const hasActivity = cell.count > 0;
 
           return (
             <button
@@ -193,18 +213,14 @@ export function ProblemsCalendar({
               disabled={isFuture}
               aria-pressed={selected}
               aria-label={
-                cell.count > 0
+                hasActivity
                   ? `${cell.date}, ${cell.count} solved`
                   : cell.date
               }
-              title={
-                cell.count > 0
-                  ? `${cell.count} solved`
-                  : undefined
-              }
+              title={hasActivity ? `${cell.count} solved` : undefined}
               onClick={() => onSelectDay(cell.date)}
               className={cn(
-                "relative flex aspect-square flex-col items-center justify-center rounded-lg text-sm transition-colors",
+                "relative flex h-7 flex-col items-center justify-center rounded-md text-xs transition-colors",
                 "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
                 "disabled:pointer-events-none disabled:opacity-30",
                 selected
@@ -214,22 +230,23 @@ export function ProblemsCalendar({
               )}
             >
               <span className="leading-none">{cell.day}</span>
-              {cell.count > 0 ? (
+              {hasActivity ? (
                 <span
                   className={cn(
-                    "mt-0.5 text-[9px] leading-none",
-                    selected
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground",
+                    "absolute bottom-0.5 size-1 rounded-full",
+                    selected ? "bg-primary-foreground/80" : "bg-primary/70",
                   )}
-                >
-                  {cell.count}
-                </span>
+                  aria-hidden
+                />
               ) : null}
             </button>
           );
         })}
       </div>
+
+      <p className="text-muted-foreground text-[10px] leading-snug">
+        Click a day to filter by solve date.
+      </p>
     </div>
   );
 }
