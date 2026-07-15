@@ -27,6 +27,7 @@ import {
   verifyOAuthHandoffToken,
 } from "../utils/jwt.js";
 import { parseOrThrow } from "../utils/validation.js";
+import { updateProfileSchema } from "../validators/user.validators.js";
 
 const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -54,10 +55,6 @@ const refreshSchema = z.object({
 
 const oauthExchangeSchema = z.object({
   code: z.string().min(1, "OAuth code is required"),
-});
-
-const updateProfileSchema = z.object({
-  name: z.string().trim().min(1).max(100),
 });
 
 async function issueAuthResponse(
@@ -225,10 +222,15 @@ export const authController = {
       throw new AppError("Authentication required", 401);
     }
 
-    const { name } = parseOrThrow(updateProfileSchema, req.body);
-    const user = await updateProfile(req.userId, { name });
+    const input = parseOrThrow(updateProfileSchema, req.body);
+    const user = await updateProfile(req.userId, input);
 
-    sendSuccess(res, { user: toAuthUser(user) }, "Profile updated");
+    const message =
+      input.revisionIntervals !== undefined && input.name === undefined
+        ? "Revision schedule updated"
+        : "Profile updated";
+
+    sendSuccess(res, { user: toAuthUser(user) }, message);
   }),
 
   deleteAccount: asyncHandler(async (req: Request, res: Response) => {

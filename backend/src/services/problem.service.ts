@@ -6,6 +6,7 @@ import {
   type IProblemDocument,
 } from "../models/Problem.js";
 import { Revision } from "../models/Revision.js";
+import { User } from "../models/User.js";
 import type { IReviewHistory } from "../models/ReviewHistory.js";
 import { AppError } from "../utils/AppError.js";
 import {
@@ -24,6 +25,10 @@ import type {
   ListProblemsQuery,
   UpdateProblemInput,
 } from "../validators/problem.validators.js";
+import {
+  DEFAULT_REVISION_INTERVALS,
+  normalizeRevisionIntervals,
+} from "../constants/revision-intervals.js";
 import { assertCanAddProblem } from "./dashboard.service.js";
 import { findProblemIdsByStatus } from "./problem-status.js";
 import {
@@ -34,18 +39,19 @@ import {
 } from "./review-history.service.js";
 
 /**
- * Revision offsets by attempt type (days from creation, UTC midnight):
- * - SELF: no revisions
- * - HINT / VIDEO: tomorrow (+1) and +7 days
+ * Fallback intervals when a user document has no saved schedule.
+ * Prefer `getRevisionIntervalsForUser` for scheduling.
  */
-export const REVISION_INTERVALS_BY_ATTEMPT: Record<
-  AttemptType,
-  readonly number[]
-> = {
-  SELF: [],
-  HINT: [1, 7],
-  VIDEO: [1, 7],
-};
+export const REVISION_INTERVALS_BY_ATTEMPT = DEFAULT_REVISION_INTERVALS;
+
+async function getRevisionIntervalsForUser(
+  userId: string,
+  attemptType: AttemptType,
+): Promise<readonly number[]> {
+  const user = await User.findById(userId).select("revisionIntervals").lean();
+  const intervals = normalizeRevisionIntervals(user?.revisionIntervals);
+  return intervals[attemptType];
+}
 
 export async function assertUniqueProblemUrl(
   userId: string,
@@ -82,7 +88,7 @@ export async function scheduleRevisionsForAttempt(
   attemptType: AttemptType,
   from: Date = new Date(),
 ): Promise<void> {
-  const intervals = REVISION_INTERVALS_BY_ATTEMPT[attemptType];
+  const intervals = await getRevisionIntervalsForUser(userId, attemptType);
   if (intervals.length === 0) {
     return;
   }

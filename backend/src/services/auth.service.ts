@@ -5,6 +5,10 @@ import { PasswordResetToken } from "../models/PasswordResetToken.js";
 import { Problem } from "../models/Problem.js";
 import { Revision } from "../models/Revision.js";
 import { User, type IUserDocument } from "../models/User.js";
+import {
+  normalizeRevisionIntervals,
+  type RevisionIntervals,
+} from "../constants/revision-intervals.js";
 import type { AuthUser } from "../types/index.js";
 import { generateOpaqueToken, hashToken } from "../utils/crypto.js";
 import { setAuthCookies } from "../utils/cookies.js";
@@ -12,8 +16,13 @@ import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import { AppError } from "../utils/AppError.js";
 import { parseObjectId } from "../utils/objectId.js";
 import { safeEqualString } from "../utils/safeEqual.js";
+import type { UpdateProfileInput } from "../validators/user.validators.js";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function sortedUniqueDays(days: number[]): number[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
 
 export function toAuthUser(user: IUserDocument): AuthUser {
   return {
@@ -22,6 +31,7 @@ export function toAuthUser(user: IUserDocument): AuthUser {
     email: user.email,
     avatar: user.avatar,
     provider: user.provider,
+    revisionIntervals: normalizeRevisionIntervals(user.revisionIntervals),
   };
 }
 
@@ -148,14 +158,27 @@ export async function resetPasswordWithToken(
 
 export async function updateProfile(
   userId: string,
-  input: { name: string },
+  input: UpdateProfileInput,
 ): Promise<IUserDocument> {
   const user = await User.findById(parseObjectId(userId, "user id"));
   if (!user) {
     throw new AppError("User not found", 404);
   }
 
-  user.name = input.name;
+  if (input.name !== undefined) {
+    user.name = input.name;
+  }
+
+  if (input.revisionIntervals !== undefined) {
+    const next: RevisionIntervals = {
+      SELF: sortedUniqueDays(input.revisionIntervals.SELF),
+      HINT: sortedUniqueDays(input.revisionIntervals.HINT),
+      VIDEO: sortedUniqueDays(input.revisionIntervals.VIDEO),
+    };
+    user.revisionIntervals = next;
+    user.markModified("revisionIntervals");
+  }
+
   await user.save();
   return user;
 }

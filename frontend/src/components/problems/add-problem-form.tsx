@@ -122,8 +122,7 @@ export function AddProblemForm() {
         <CardHeader>
           <CardTitle>Problem details</CardTitle>
           <CardDescription>
-            Hints and solutions schedule revisions for tomorrow and in 7 days;
-            solving yourself skips revisions.
+            Revision timing follows your Settings schedule for each solve type.
           </CardDescription>
         </CardHeader>
         <CardContent>

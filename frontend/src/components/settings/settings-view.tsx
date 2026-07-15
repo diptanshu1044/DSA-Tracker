@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { RevisionScheduleSettings } from "@/components/settings/revision-schedule-settings";
 import { ApiError } from "@/lib/api";
 import { getInitials } from "@/lib/initials";
 import {
@@ -100,7 +101,7 @@ export function SettingsView() {
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Settings"
-        description="Manage your profile, appearance, and account."
+        description="Manage your profile, revision schedule, appearance, and account."
       />
 
       <Card>
@@ -174,6 +175,8 @@ export function SettingsView() {
           </form>
         </CardContent>
       </Card>
+
+      <RevisionScheduleSettings />
 
       <Card>
         <CardHeader>

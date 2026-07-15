@@ -11,6 +11,13 @@ export type ReviewHistoryType = "INITIAL" | "REVIEW";
 /** Outcome of an attempt/review — same values as AttemptType. */
 export type ReviewResult = AttemptType;
 
+/** Day offsets (from problem creation) used when scheduling new revisions. */
+export interface RevisionIntervals {
+  SELF: number[];
+  HINT: number[];
+  VIDEO: number[];
+}
+
 export interface Problem {
   _id: string;
   userId: string;
@@ -54,6 +61,8 @@ export interface User {
   email: string;
   avatar?: string;
   provider: AuthProvider;
+  /** Present on API responses; older persisted sessions may omit until refresh. */
+  revisionIntervals?: RevisionIntervals;
 }
 
 export interface ApiSuccess<T> {

@@ -2,6 +2,7 @@ import { apiRequest } from "@/lib/api";
 import type {
   AuthPayload,
   ForgotPasswordPayload,
+  RevisionIntervals,
   User,
 } from "@/types/api";
 
@@ -79,7 +80,10 @@ export const authApi = {
     });
   },
 
-  updateProfile(data: { name: string }) {
+  updateProfile(data: {
+    name?: string;
+    revisionIntervals?: RevisionIntervals;
+  }) {
     return apiRequest<{ user: User }>({
       method: "PATCH",
       url: "/auth/me",
