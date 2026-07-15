@@ -69,7 +69,7 @@ function NavLinks({
 
 export function Sidebar() {
   return (
-    <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden h-svh w-64 shrink-0 flex-col border-r md:flex">
+    <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden h-full min-h-0 w-64 shrink-0 flex-col overflow-hidden border-r md:flex">
       <div className="flex h-14 items-center px-4">
         <Link
           href="/dashboard"

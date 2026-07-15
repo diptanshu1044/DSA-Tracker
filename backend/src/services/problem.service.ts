@@ -37,6 +37,7 @@ import {
   getNextPendingReviewDate,
   listReviewHistory,
 } from "./review-history.service.js";
+import { startOfNextUtcDay, startOfUtcDay } from "../utils/dates.js";
 
 /**
  * Fallback intervals when a user document has no saved schedule.
@@ -80,6 +81,41 @@ async function nextRevisionNumber(
     .select("revisionNumber")
     .lean();
   return (last?.revisionNumber ?? 0) + 1;
+}
+
+function utcDayStart(dateKey: string): Date {
+  return new Date(`${dateKey}T00:00:00.000Z`);
+}
+
+/**
+ * Builds an inclusive UTC day range for Problem.createdAt ("solved/logged" time).
+ * Explicit createdAfter/createdBefore win over `days`.
+ */
+function resolveCreatedAtRange(
+  query: ListProblemsQuery,
+): { $gte?: Date; $lt?: Date } | undefined {
+  if (query.createdAfter || query.createdBefore) {
+    const range: { $gte?: Date; $lt?: Date } = {};
+    if (query.createdAfter) {
+      range.$gte = utcDayStart(query.createdAfter);
+    }
+    if (query.createdBefore) {
+      range.$lt = startOfNextUtcDay(utcDayStart(query.createdBefore));
+    }
+    return range;
+  }
+
+  if (query.days) {
+    const todayStart = startOfUtcDay();
+    const from = new Date(todayStart);
+    from.setUTCDate(from.getUTCDate() - (query.days - 1));
+    return {
+      $gte: from,
+      $lt: startOfNextUtcDay(todayStart),
+    };
+  }
+
+  return undefined;
 }
 
 export async function scheduleRevisionsForAttempt(
@@ -221,6 +257,11 @@ export async function listProblems(
   if (query.status) {
     const ids = await findProblemIdsByStatus(userId, query.status);
     filter._id = { $in: ids };
+  }
+
+  const createdAtRange = resolveCreatedAtRange(query);
+  if (createdAtRange) {
+    filter.createdAt = createdAtRange;
   }
 
   const skip = paginationSkip(query.page, query.limit);

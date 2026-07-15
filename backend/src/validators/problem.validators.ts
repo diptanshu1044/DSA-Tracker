@@ -56,12 +56,44 @@ export const PROBLEM_STATUS_FILTERS = [
   "forgotten",
 ] as const;
 
-export const listProblemsQuerySchema = paginationQuerySchema.extend({
-  attemptType: z.enum(ATTEMPT_TYPES).optional(),
-  search: z.string().trim().max(200).optional(),
-  status: z.enum(PROBLEM_STATUS_FILTERS).optional(),
-  topic: z.string().trim().min(1).max(100).optional(),
-});
+/** UTC calendar day as YYYY-MM-DD (same convention as activity APIs). */
+const utcDateKeySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return (
+      !Number.isNaN(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === value
+    );
+  }, "Invalid calendar date");
+
+export const listProblemsQuerySchema = paginationQuerySchema
+  .extend({
+    attemptType: z.enum(ATTEMPT_TYPES).optional(),
+    search: z.string().trim().max(200).optional(),
+    status: z.enum(PROBLEM_STATUS_FILTERS).optional(),
+    topic: z.string().trim().min(1).max(100).optional(),
+    /** Inclusive UTC start day for when the problem was logged/solved. */
+    createdAfter: utcDateKeySchema.optional(),
+    /** Inclusive UTC end day for when the problem was logged/solved. */
+    createdBefore: utcDateKeySchema.optional(),
+    /** Last N UTC calendar days including today (ignored if createdAfter/createdBefore set). */
+    days: z.coerce.number().int().min(1).max(365).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.createdAfter &&
+      data.createdBefore &&
+      data.createdAfter > data.createdBefore
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["createdAfter"],
+        message: "createdAfter must be on or before createdBefore",
+      });
+    }
+  });
 
 export type CreateProblemInput = z.infer<typeof createProblemSchema>;
 export type UpdateProblemInput = z.infer<typeof updateProblemSchema>;

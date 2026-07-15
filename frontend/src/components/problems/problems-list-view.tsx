@@ -16,6 +16,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProblemsCalendar } from "@/components/problems/problems-calendar";
+import {
+  ProblemsDateFilter,
+  applyDateFilterToParams,
+  dateFilterFromSearchParams,
+  dateFilterLabel,
+  toListDateParams,
+  type DateFilterValue,
+} from "@/components/problems/problems-date-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { ApiError } from "@/lib/api";
@@ -69,6 +78,8 @@ function ProblemsListSkeleton() {
         </div>
         <Skeleton className="h-8 w-32" />
       </div>
+      <Skeleton className="h-40 w-full rounded-xl" />
+      <Skeleton className="h-36 w-full rounded-xl" />
       <Skeleton className="h-8 w-full max-w-sm" />
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -94,6 +105,18 @@ function ProblemsListContent() {
   const initialAttemptType = isAttemptType(attemptTypeParam)
     ? attemptTypeParam
     : "ALL";
+  const dateFilter = dateFilterFromSearchParams({
+    days: searchParams.get("days"),
+    createdAfter: searchParams.get("createdAfter"),
+    createdBefore: searchParams.get("createdBefore"),
+  });
+  const dateParams = toListDateParams(dateFilter);
+  const dateLabel = dateFilterLabel(dateFilter);
+  const dateFilterKey = [
+    searchParams.get("days") ?? "",
+    searchParams.get("createdAfter") ?? "",
+    searchParams.get("createdBefore") ?? "",
+  ].join("|");
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -105,7 +128,7 @@ function ProblemsListContent() {
   useEffect(() => {
     setAttemptType(initialAttemptType);
     setPage(1);
-  }, [initialAttemptType, statusFilter, topicFilter]);
+  }, [initialAttemptType, statusFilter, topicFilter, dateFilterKey]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -115,25 +138,37 @@ function ProblemsListContent() {
     return () => window.clearTimeout(id);
   }, [search]);
 
-  function updateAttemptType(next: AttemptType | "ALL") {
-    setAttemptType(next);
-    setPage(1);
+  function replaceParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === "ALL") {
-      params.delete("attemptType");
-    } else {
-      params.set("attemptType", next);
-    }
+    mutate(params);
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname);
   }
 
+  function updateAttemptType(next: AttemptType | "ALL") {
+    setAttemptType(next);
+    setPage(1);
+    replaceParams((params) => {
+      if (next === "ALL") {
+        params.delete("attemptType");
+      } else {
+        params.set("attemptType", next);
+      }
+    });
+  }
+
+  function updateDateFilter(next: DateFilterValue) {
+    setPage(1);
+    replaceParams((params) => {
+      applyDateFilterToParams(params, next);
+    });
+  }
+
   function clearStatusAndTopicFilters() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("status");
-    params.delete("topic");
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    replaceParams((params) => {
+      params.delete("status");
+      params.delete("topic");
+    });
   }
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -144,6 +179,7 @@ function ProblemsListContent() {
         attemptType: attemptType === "ALL" ? undefined : attemptType,
         status: statusFilter ?? undefined,
         topic: topicFilter ?? undefined,
+        ...dateParams,
         page,
         limit: PAGE_SIZE,
       },
@@ -156,6 +192,7 @@ function ProblemsListContent() {
         ...(attemptType !== "ALL" ? { attemptType } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(topicFilter ? { topic: topicFilter } : {}),
+        ...dateParams,
       });
       return result;
     },
@@ -196,7 +233,8 @@ function ProblemsListContent() {
     Boolean(debouncedSearch) ||
     attemptType !== "ALL" ||
     Boolean(statusFilter) ||
-    Boolean(topicFilter);
+    Boolean(topicFilter) ||
+    dateFilter.mode !== "all";
 
   return (
     <div className="space-y-6">
@@ -210,6 +248,13 @@ function ProblemsListContent() {
           </Button>
         }
       />
+
+      <ProblemsCalendar
+        filter={dateFilter}
+        onSelectDay={(date) => updateDateFilter({ mode: "day", date })}
+      />
+
+      <ProblemsDateFilter value={dateFilter} onChange={updateDateFilter} />
 
       <div className="flex flex-col gap-3">
         <div className="relative max-w-sm">
@@ -245,8 +290,11 @@ function ProblemsListContent() {
           })}
         </div>
 
-        {statusFilter || topicFilter ? (
+        {statusFilter || topicFilter || dateLabel ? (
           <div className="flex flex-wrap items-center gap-2">
+            {dateLabel ? (
+              <Badge variant="secondary">Solved: {dateLabel}</Badge>
+            ) : null}
             {statusFilter ? (
               <Badge variant="secondary">
                 Status: {STATUS_LABELS[statusFilter]}
@@ -255,15 +303,17 @@ function ProblemsListContent() {
             {topicFilter ? (
               <Badge variant="secondary">Topic: {topicFilter}</Badge>
             ) : null}
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={clearStatusAndTopicFilters}
-            >
-              <X className="size-3.5" />
-              Clear filters
-            </Button>
+            {statusFilter || topicFilter ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={clearStatusAndTopicFilters}
+              >
+                <X className="size-3.5" />
+                Clear status / topic
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -276,7 +326,9 @@ function ProblemsListContent() {
               ? hasFilters
                 ? "No problems match your search or filters."
                 : "No problems yet. Add one to get started."
-              : `${pagination.total} problem${pagination.total === 1 ? "" : "s"}`}
+              : `${pagination.total} problem${pagination.total === 1 ? "" : "s"}${
+                  dateLabel ? ` solved (${dateLabel})` : ""
+                }`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -286,7 +338,7 @@ function ProblemsListContent() {
               title={hasFilters ? "No matching problems" : "No problems yet"}
               description={
                 hasFilters
-                  ? "Try a different title or clear the active filters."
+                  ? "Try a different date, title, or clear the active filters."
                   : "Problems you log will show up here."
               }
               action={

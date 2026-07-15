@@ -100,3 +100,44 @@ export function formatShortDate(value: string): string {
     timeZone: "UTC",
   });
 }
+
+/** UTC calendar day key (YYYY-MM-DD) for the given instant. */
+export function toUtcDateKey(date: Date = new Date()): string {
+  return startOfUtcDay(date).toISOString().slice(0, 10);
+}
+
+/** Whether a string is a valid UTC calendar day key. */
+export function isUtcDateKey(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
+/**
+ * Inclusive UTC day range covering the last `days` calendar days (including today).
+ * Example: days=7 with today=2026-07-16 → 2026-07-10 .. 2026-07-16.
+ */
+export function lastUtcDaysRange(days: number, now: Date = new Date()): {
+  createdAfter: string;
+  createdBefore: string;
+} {
+  const today = startOfUtcDay(now);
+  const from = new Date(today);
+  from.setUTCDate(from.getUTCDate() - (days - 1));
+  return {
+    createdAfter: toUtcDateKey(from),
+    createdBefore: toUtcDateKey(today),
+  };
+}
+
+export function formatUtcDateKey(dateKey: string): string {
+  if (!isUtcDateKey(dateKey)) {
+    return dateKey;
+  }
+  return formatShortDate(`${dateKey}T00:00:00.000Z`);
+}

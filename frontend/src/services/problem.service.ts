@@ -29,6 +29,12 @@ export interface ListProblemsParams {
   search?: string;
   status?: ProblemStatus;
   topic?: string;
+  /** Inclusive UTC start day (YYYY-MM-DD). */
+  createdAfter?: string;
+  /** Inclusive UTC end day (YYYY-MM-DD). */
+  createdBefore?: string;
+  /** Last N UTC calendar days including today. */
+  days?: number;
 }
 
 export interface ListProblemsResult {
@@ -46,6 +52,9 @@ function toQuery(
   if (params.search) query.search = params.search;
   if (params.status) query.status = params.status;
   if (params.topic) query.topic = params.topic;
+  if (params.createdAfter) query.createdAfter = params.createdAfter;
+  if (params.createdBefore) query.createdBefore = params.createdBefore;
+  if (params.days !== undefined) query.days = params.days;
   return query;
 }
 

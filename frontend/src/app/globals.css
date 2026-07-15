@@ -127,4 +127,9 @@
   html {
     @apply font-sans;
   }
+  /* Keep the authenticated shell viewport-locked; only main content scrolls. */
+  html:has([data-app-shell]),
+  body:has([data-app-shell]) {
+    @apply h-full overflow-hidden;
+  }
 }

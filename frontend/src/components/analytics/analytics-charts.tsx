@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -30,6 +31,15 @@ import type {
   AnalyticsTrends,
   AnalyticsWeekCount,
 } from "@/types/api";
+
+/** Keeps Recharts from expanding page height inside flex/grid parents. */
+function ChartFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative h-72 w-full min-h-0 shrink-0">
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+}
 
 const ATTEMPT_COLORS: Record<string, string> = {
   SELF: "var(--chart-1)",
@@ -145,34 +155,36 @@ export function AnalyticsCharts({
             <CardTitle>Daily review activity</CardTitle>
             <CardDescription>Reviews completed — last 30 days (UTC)</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trends.reviewsByDay} margin={{ left: 0, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDayTick}
-                  minTickGap={28}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <Tooltip
-                  labelFormatter={(label) => formatDayTick(String(label))}
-                  formatter={(value) => [Number(value ?? 0), "Reviews"]}
-                />
-                <Bar
-                  dataKey="count"
-                  fill="var(--chart-2)"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <ChartFrame>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trends.reviewsByDay} margin={{ left: 0, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDayTick}
+                    minTickGap={28}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    width={32}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => formatDayTick(String(label))}
+                    formatter={(value) => [Number(value ?? 0), "Reviews"]}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="var(--chart-2)"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           </CardContent>
         </Card>
 
@@ -181,37 +193,39 @@ export function AnalyticsCharts({
             <CardTitle>Problems added by day</CardTitle>
             <CardDescription>Last 30 days (UTC)</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={problemsByDay} margin={{ left: 0, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDayTick}
-                  minTickGap={28}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <Tooltip
-                  labelFormatter={(label) => formatDayTick(String(label))}
-                  formatter={(value) => [Number(value ?? 0), "Problems"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="var(--chart-2)"
-                  fill="var(--chart-1)"
-                  fillOpacity={0.45}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <ChartFrame>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={problemsByDay} margin={{ left: 0, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDayTick}
+                    minTickGap={28}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    width={32}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => formatDayTick(String(label))}
+                    formatter={(value) => [Number(value ?? 0), "Problems"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--chart-2)"
+                    fill="var(--chart-1)"
+                    fillOpacity={0.45}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           </CardContent>
         </Card>
 
@@ -220,41 +234,43 @@ export function AnalyticsCharts({
             <CardTitle>Attempt type mix</CardTitle>
             <CardDescription>SELF / HINT / VIDEO breakdown</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
+          <CardContent>
             {pieTotal === 0 ? (
               <EmptyState
                 title="No problems logged yet"
                 description="Add problems to see attempt type breakdown."
-                className="h-full border-0 py-8"
+                className="h-72 border-0 py-8"
               />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={52}
-                    outerRadius={88}
-                    paddingAngle={2}
-                  >
-                    {pieData.map((entry) => (
-                      <Cell
-                        key={entry.attemptType}
-                        fill={
-                          ATTEMPT_COLORS[entry.attemptType] ?? "var(--chart-4)"
-                        }
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [Number(value ?? 0), "Problems"]}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <ChartFrame>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={88}
+                      paddingAngle={2}
+                    >
+                      {pieData.map((entry) => (
+                        <Cell
+                          key={entry.attemptType}
+                          fill={
+                            ATTEMPT_COLORS[entry.attemptType] ?? "var(--chart-4)"
+                          }
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => [Number(value ?? 0), "Problems"]}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartFrame>
             )}
           </CardContent>
         </Card>
@@ -266,36 +282,38 @@ export function AnalyticsCharts({
               Last 12 weeks (UTC, week starts Monday)
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revisionsByWeek} margin={{ left: 0, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="weekStart"
-                  tickFormatter={formatWeekTick}
-                  minTickGap={24}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <Tooltip
-                  labelFormatter={(label) =>
-                    `Week of ${formatWeekTick(String(label))}`
-                  }
-                  formatter={(value) => [Number(value ?? 0), "Completed"]}
-                />
-                <Bar
-                  dataKey="count"
-                  fill="var(--chart-2)"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <ChartFrame>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revisionsByWeek} margin={{ left: 0, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="weekStart"
+                    tickFormatter={formatWeekTick}
+                    minTickGap={24}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    width={32}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    labelFormatter={(label) =>
+                      `Week of ${formatWeekTick(String(label))}`
+                    }
+                    formatter={(value) => [Number(value ?? 0), "Completed"]}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="var(--chart-2)"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           </CardContent>
         </Card>
       </div>

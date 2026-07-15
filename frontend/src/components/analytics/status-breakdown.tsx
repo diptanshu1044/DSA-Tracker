@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Cell,
@@ -18,6 +19,14 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { StatusBreakdown } from "@/types/api";
+
+function ChartFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative h-72 w-full min-h-0 shrink-0">
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+}
 
 const STATUS_CONFIG = [
   {
@@ -90,36 +99,38 @@ export function StatusBreakdownSection({
             <CardTitle>Status mix</CardTitle>
             <CardDescription>{total} total problems</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
+          <CardContent>
             {total === 0 ? (
               <EmptyState
                 title="No problems yet"
                 description="Log problems to see your status breakdown."
-                className="h-full border-0 py-8"
+                className="h-72 border-0 py-8"
               />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    dataKey="value"
-                    nameKey="label"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={52}
-                    outerRadius={88}
-                    paddingAngle={2}
-                  >
-                    {data.map((entry) => (
-                      <Cell key={entry.key} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [Number(value ?? 0), "Problems"]}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <ChartFrame>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={88}
+                      paddingAngle={2}
+                    >
+                      {data.map((entry) => (
+                        <Cell key={entry.key} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => [Number(value ?? 0), "Problems"]}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartFrame>
             )}
           </CardContent>
         </Card>
