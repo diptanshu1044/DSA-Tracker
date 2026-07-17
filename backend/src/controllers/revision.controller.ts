@@ -7,6 +7,7 @@ import {
   listRevisions,
   retryFailedRevision,
   scheduleAdditionalRevision,
+  scheduleManualRevisions,
   updateRevision,
 } from "../services/revision.service.js";
 import { paramId } from "../utils/params.js";
@@ -17,6 +18,7 @@ import {
   createRevisionSchema,
   listRevisionsQuerySchema,
   scheduleAdditionalRevisionSchema,
+  scheduleManualRevisionSchema,
   updateRevisionSchema,
 } from "../validators/revision.validators.js";
 
@@ -68,6 +70,21 @@ export const revisionController = {
     const input = parseOrThrow(scheduleAdditionalRevisionSchema, req.body);
     const revision = await scheduleAdditionalRevision(userId, input);
     sendSuccess(res, { revision }, "Additional revision scheduled", 201);
+  }),
+
+  scheduleManual: asyncHandler(async (req: Request, res: Response) => {
+    const userId = requireUserId(req);
+    const input = parseOrThrow(scheduleManualRevisionSchema, req.body);
+    const revisions = await scheduleManualRevisions(userId, input);
+    const count = revisions.length;
+    sendSuccess(
+      res,
+      { revisions },
+      count === 1
+        ? "Revision scheduled"
+        : `${count} revisions scheduled`,
+      201,
+    );
   }),
 
   retryTomorrow: asyncHandler(async (req: Request, res: Response) => {

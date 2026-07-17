@@ -14,12 +14,15 @@ import {
   paginationSkip,
   type PaginatedResult,
 } from "../utils/pagination.js";
+import { PENDING_REVISION_LIMIT } from "../constants/limits.js";
 import type {
   CreateRevisionInput,
   ListRevisionsQuery,
   ScheduleAdditionalRevisionInput,
+  ScheduleManualRevisionInput,
   UpdateRevisionInput,
 } from "../validators/revision.validators.js";
+import { countPendingRevisions } from "./dashboard.service.js";
 import {
   createReviewHistoryEntry,
   getNextPendingReviewDate,
@@ -388,6 +391,83 @@ export async function scheduleAdditionalRevision(
   const problemObjectId = parseObjectId(input.problemId, "problemId");
   await assertProblemOwnedByUser(userId, input.problemId);
   return createPendingRevisionAtOffset(userId, problemObjectId, input.days);
+}
+
+function buildManualDueDates(input: ScheduleManualRevisionInput): Date[] {
+  if (input.mode === "once") {
+    return [startOfUtcDay(input.dueDate)];
+  }
+
+  const intervalDays = input.intervalDays;
+  const times = input.times;
+  const firstDue = input.startDate
+    ? startOfUtcDay(input.startDate)
+    : (() => {
+        const date = startOfUtcDay();
+        date.setUTCDate(date.getUTCDate() + intervalDays);
+        return date;
+      })();
+
+  return Array.from({ length: times }, (_, index) => {
+    const dueDate = new Date(firstDue);
+    dueDate.setUTCDate(dueDate.getUTCDate() + index * intervalDays);
+    return dueDate;
+  });
+}
+
+async function assertCanScheduleRevisions(
+  userId: string,
+  count: number,
+): Promise<void> {
+  const pending = await countPendingRevisions(userId);
+  if (pending + count > PENDING_REVISION_LIMIT) {
+    throw new AppError(
+      `Scheduling ${count} revision${count === 1 ? "" : "s"} would exceed the pending limit of ${PENDING_REVISION_LIMIT} (you currently have ${pending}). Complete some reviews first.`,
+      403,
+    );
+  }
+}
+
+/**
+ * Manually schedule one or more revisions for an existing problem.
+ * Auto-assigns revision numbers; does not replace the attempt-type schedule.
+ */
+export async function scheduleManualRevisions(
+  userId: string,
+  input: ScheduleManualRevisionInput,
+): Promise<IRevisionDocument[]> {
+  const problemObjectId = parseObjectId(input.problemId, "problemId");
+  await assertProblemOwnedByUser(userId, input.problemId);
+
+  const dueDates = buildManualDueDates(input);
+  await assertCanScheduleRevisions(userId, dueDates.length);
+
+  const startNumber = await nextRevisionNumber(userId, problemObjectId);
+  const docs = dueDates.map((dueDate, index) => ({
+    userId,
+    problemId: problemObjectId,
+    dueDate,
+    revisionNumber: startNumber + index,
+    completed: false,
+  }));
+
+  try {
+    const created = await Revision.insertMany(docs);
+    const ids = created.map((doc) => doc._id);
+    const revisions = await Revision.find({ _id: { $in: ids } })
+      .sort({ revisionNumber: 1 })
+      .populate("problemId", "title url attemptType");
+    return revisions;
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new AppError(
+        "A revision with this number already exists for the problem",
+        409,
+        { revisionNumber: ["Revision number must be unique per problem"] },
+      );
+    }
+    throw error;
+  }
 }
 
 export async function deleteRevision(

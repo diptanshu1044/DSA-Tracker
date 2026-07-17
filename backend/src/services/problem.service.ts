@@ -252,6 +252,8 @@ export async function listProblems(
       { title: { $regex: escaped, $options: "i" } },
       { url: { $regex: escaped, $options: "i" } },
       { slug: { $regex: escaped, $options: "i" } },
+      // LeetCode frontend id (e.g. "1", "42")
+      { problemId: { $regex: escaped, $options: "i" } },
     ];
   }
 

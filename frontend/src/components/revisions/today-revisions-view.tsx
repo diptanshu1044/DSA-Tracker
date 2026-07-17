@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -64,13 +65,29 @@ export function TodayRevisionsView() {
       <PageHeader
         title="Today's Revision"
         description="Incomplete reviews due today or earlier. Missed items stay in this list until you complete them."
+        actions={
+          <Button type="button" render={<Link href="/revisions/schedule" />}>
+            <Plus className="size-4" />
+            Schedule revision
+          </Button>
+        }
       />
 
       {data.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
           title="No revisions due today"
-          description="Nice work staying current. Check back when the next review is scheduled."
+          description="Nice work staying current. Schedule a review for any problem you've already logged."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              render={<Link href="/revisions/schedule" />}
+            >
+              <Plus className="size-4" />
+              Schedule revision
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

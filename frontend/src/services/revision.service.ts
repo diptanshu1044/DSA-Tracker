@@ -90,4 +90,39 @@ export const revisionApi = {
       data: { problemId, days },
     });
   },
+
+  /**
+   * Manually schedule one revision on a date, or a repeating series
+   * (`times` reviews every `intervalDays` days).
+   */
+  schedule(
+    input:
+      | { mode: "once"; problemId: string; dueDate: string }
+      | {
+          mode: "repeating";
+          problemId: string;
+          intervalDays: number;
+          times: number;
+          startDate: string;
+        },
+  ) {
+    return apiRequest<{ revisions: Revision[] }>({
+      method: "POST",
+      url: "/revisions/schedule",
+      data:
+        input.mode === "once"
+          ? {
+              mode: "once",
+              problemId: input.problemId,
+              dueDate: `${input.dueDate}T00:00:00.000Z`,
+            }
+          : {
+              mode: "repeating",
+              problemId: input.problemId,
+              intervalDays: input.intervalDays,
+              times: input.times,
+              startDate: `${input.startDate}T00:00:00.000Z`,
+            },
+    });
+  },
 };
