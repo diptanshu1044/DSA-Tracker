@@ -104,6 +104,8 @@ export interface PaginationMeta {
 export interface DashboardStats {
   problemsAdded: number;
   pendingRevisions: number;
+  /** Incomplete revisions due on the next UTC calendar day. */
+  pendingRevisionsNextDay: number;
   overdue: number;
   addedToday: number;
 }
@@ -268,7 +270,7 @@ export interface RetryFailedRevisionResult {
   revisionCycleComplete: false;
 }
 
-/** Block adding problems when pending revisions exceed this count. */
+/** Block adding problems when revisions due tomorrow exceed this count. */
 export const PENDING_REVISION_LIMIT = 20;
 
 export const PROBLEM_STATUSES = [

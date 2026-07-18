@@ -64,7 +64,7 @@ export function DashboardView() {
   }
 
   const backlogBlocked = !data.canAddProblem;
-  const pending = data.stats.pendingRevisions;
+  const pendingNextDay = data.stats.pendingRevisionsNextDay;
 
   return (
     <div className="space-y-6">
@@ -95,7 +95,7 @@ export function DashboardView() {
           <div className="space-y-1">
             <p className="font-medium">Revision backlog is too high</p>
             <p className="text-amber-900/80 dark:text-amber-100/80">
-              You have {pending} pending revisions (limit{" "}
+              You have {pendingNextDay} revisions due tomorrow (limit{" "}
               {PENDING_REVISION_LIMIT}). Clear some reviews before adding new
               problems.
             </p>

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertTriangle,
   BookPlus,
   CalendarPlus,
   CircleAlert,
@@ -15,7 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { DashboardStats } from "@/types/api";
-import { PENDING_REVISION_LIMIT } from "@/types/api";
 
 const statCards = [
   {
@@ -55,11 +53,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
         const Icon = card.icon;
         const value = stats[card.key];
         const highlight =
-          card.key === "overdue" && value > 0
-            ? "text-destructive"
-            : card.key === "pendingRevisions" && value > PENDING_REVISION_LIMIT
-              ? "text-amber-700 dark:text-amber-400"
-              : "";
+          card.key === "overdue" && value > 0 ? "text-destructive" : "";
 
         return (
           <Card key={card.key} size="sm">
@@ -73,12 +67,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
                 </CardTitle>
               </div>
               <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-                {card.key === "pendingRevisions" &&
-                value > PENDING_REVISION_LIMIT ? (
-                  <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
-                ) : (
-                  <Icon className="size-4" />
-                )}
+                <Icon className="size-4" />
               </div>
             </CardHeader>
             <CardContent>

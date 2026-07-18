@@ -28,6 +28,8 @@ export interface DashboardQueueItem {
 export interface DashboardStats {
   problemsAdded: number;
   pendingRevisions: number;
+  /** Incomplete revisions due on the next UTC calendar day. */
+  pendingRevisionsNextDay: number;
   overdue: number;
   addedToday: number;
 }
@@ -43,22 +45,34 @@ export interface DashboardData {
 export async function getDashboard(userId: string): Promise<DashboardData> {
   const todayStart = startOfUtcDay();
   const tomorrowStart = startOfNextUtcDay();
+  const dayAfterTomorrow = startOfNextUtcDay(tomorrowStart);
 
-  const [problemsAdded, pendingRevisions, overdue, addedToday, todaysQueue] =
-    await Promise.all([
-      Problem.countDocuments({ userId }),
-      Revision.countDocuments({ userId, completed: false }),
-      Revision.countDocuments({
-        userId,
-        completed: false,
-        dueDate: { $lt: todayStart },
-      }),
-      Problem.countDocuments({
-        userId,
-        createdAt: { $gte: todayStart, $lt: tomorrowStart },
-      }),
-      buildTodaysQueue(userId),
-    ]);
+  const [
+    problemsAdded,
+    pendingRevisions,
+    pendingRevisionsNextDay,
+    overdue,
+    addedToday,
+    todaysQueue,
+  ] = await Promise.all([
+    Problem.countDocuments({ userId }),
+    Revision.countDocuments({ userId, completed: false }),
+    Revision.countDocuments({
+      userId,
+      completed: false,
+      dueDate: { $gte: tomorrowStart, $lt: dayAfterTomorrow },
+    }),
+    Revision.countDocuments({
+      userId,
+      completed: false,
+      dueDate: { $lt: todayStart },
+    }),
+    Problem.countDocuments({
+      userId,
+      createdAt: { $gte: todayStart, $lt: tomorrowStart },
+    }),
+    buildTodaysQueue(userId),
+  ]);
 
   const revisionQueue: DashboardQueueItem[] = reviewItemsFromQueue(todaysQueue);
 
@@ -66,24 +80,33 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     stats: {
       problemsAdded,
       pendingRevisions,
+      pendingRevisionsNextDay,
       overdue,
       addedToday,
     },
-    canAddProblem: pendingRevisions <= PENDING_REVISION_LIMIT,
+    canAddProblem: pendingRevisionsNextDay <= PENDING_REVISION_LIMIT,
     revisionQueue,
     todaysQueue,
   };
 }
 
-export async function countPendingRevisions(userId: string): Promise<number> {
-  return Revision.countDocuments({ userId, completed: false });
+export async function countPendingRevisionsDueNextDay(
+  userId: string,
+): Promise<number> {
+  const tomorrowStart = startOfNextUtcDay();
+  const dayAfterTomorrow = startOfNextUtcDay(tomorrowStart);
+  return Revision.countDocuments({
+    userId,
+    completed: false,
+    dueDate: { $gte: tomorrowStart, $lt: dayAfterTomorrow },
+  });
 }
 
 export async function assertCanAddProblem(userId: string): Promise<void> {
-  const pending = await countPendingRevisions(userId);
+  const pending = await countPendingRevisionsDueNextDay(userId);
   if (pending > PENDING_REVISION_LIMIT) {
     throw new AppError(
-      `You have ${pending} pending revisions (limit ${PENDING_REVISION_LIMIT}). Complete some before adding new problems.`,
+      `You have ${pending} revisions due tomorrow (limit ${PENDING_REVISION_LIMIT}). Complete some before adding new problems.`,
       403,
     );
   }

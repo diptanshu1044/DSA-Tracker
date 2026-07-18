@@ -43,7 +43,7 @@ export function AddProblemForm() {
   });
 
   const canAddProblem = canAddQuery.data?.canAddProblem ?? true;
-  const pending = canAddQuery.data?.stats.pendingRevisions;
+  const pendingNextDay = canAddQuery.data?.stats.pendingRevisionsNextDay;
 
   const {
     register,
@@ -109,7 +109,7 @@ export function AddProblemForm() {
           role="alert"
           className="border-amber-500/30 bg-amber-500/10 mb-0 rounded-xl border px-4 py-3 text-sm"
         >
-          You have {pending ?? "too many"} pending revisions (limit{" "}
+          You have {pendingNextDay ?? "too many"} revisions due tomorrow (limit{" "}
           {PENDING_REVISION_LIMIT}).{" "}
           <Link href="/revisions" className="underline underline-offset-4">
             Complete some revisions

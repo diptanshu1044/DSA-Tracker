@@ -6,7 +6,7 @@ import {
   type IRevisionDocument,
 } from "../models/Revision.js";
 import { AppError } from "../utils/AppError.js";
-import { startOfUtcDay } from "../utils/dates.js";
+import { startOfNextUtcDay, startOfUtcDay } from "../utils/dates.js";
 import { isDuplicateKeyError } from "../utils/mongo.js";
 import { parseObjectId } from "../utils/objectId.js";
 import {
@@ -22,7 +22,7 @@ import type {
   ScheduleManualRevisionInput,
   UpdateRevisionInput,
 } from "../validators/revision.validators.js";
-import { countPendingRevisions } from "./dashboard.service.js";
+import { countPendingRevisionsDueNextDay } from "./dashboard.service.js";
 import {
   createReviewHistoryEntry,
   getNextPendingReviewDate,
@@ -417,12 +417,21 @@ function buildManualDueDates(input: ScheduleManualRevisionInput): Date[] {
 
 async function assertCanScheduleRevisions(
   userId: string,
-  count: number,
+  dueDates: Date[],
 ): Promise<void> {
-  const pending = await countPendingRevisions(userId);
-  if (pending + count > PENDING_REVISION_LIMIT) {
+  const tomorrowStart = startOfNextUtcDay();
+  const dayAfterTomorrow = startOfNextUtcDay(tomorrowStart);
+  const newOnTomorrow = dueDates.filter(
+    (dueDate) => dueDate >= tomorrowStart && dueDate < dayAfterTomorrow,
+  ).length;
+  if (newOnTomorrow === 0) {
+    return;
+  }
+
+  const pending = await countPendingRevisionsDueNextDay(userId);
+  if (pending + newOnTomorrow > PENDING_REVISION_LIMIT) {
     throw new AppError(
-      `Scheduling ${count} revision${count === 1 ? "" : "s"} would exceed the pending limit of ${PENDING_REVISION_LIMIT} (you currently have ${pending}). Complete some reviews first.`,
+      `Scheduling ${newOnTomorrow} revision${newOnTomorrow === 1 ? "" : "s"} for tomorrow would exceed the limit of ${PENDING_REVISION_LIMIT} (tomorrow already has ${pending}). Complete some reviews first.`,
       403,
     );
   }
@@ -440,7 +449,7 @@ export async function scheduleManualRevisions(
   await assertProblemOwnedByUser(userId, input.problemId);
 
   const dueDates = buildManualDueDates(input);
-  await assertCanScheduleRevisions(userId, dueDates.length);
+  await assertCanScheduleRevisions(userId, dueDates);
 
   const startNumber = await nextRevisionNumber(userId, problemObjectId);
   const docs = dueDates.map((dueDate, index) => ({

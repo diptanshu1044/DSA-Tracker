@@ -161,7 +161,7 @@ export function EmptyActivityState({ canAddProblem }: EmptyActivityStateProps) {
         </Button>
       ) : (
         <p className="text-muted-foreground text-xs">
-          Clear some pending revisions before adding a new problem.
+          Clear some revisions due tomorrow before adding a new problem.
         </p>
       )}
     </div>
